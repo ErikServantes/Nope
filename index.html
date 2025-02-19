@@ -1,108 +1,348 @@
 <!DOCTYPE html>
 <html lang="pt">
-  <head>
-    <meta charset="utf-8">
-    <title>Planeta com Lua Orbitante</title>
-    <style>
-      /* Remove margens, oculta barras de rolagem e define fundo preto para simular o espaço */
-      body { margin: 0; overflow: hidden; background: #000; }
-      canvas { display: block; }
-    </style>
-  </head>
-  <body>
-    <!-- Importa a biblioteca Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-      // Criação da cena, câmera e renderizador
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x000000); // Fundo preto
+<head>
+  <meta charset="UTF-8">
+  <title>Simulação 3D do Sistema Solar com Texturas, Displacement Maps e Luas</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    input, label { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <!-- Interface de Controle -->
+  <div id="ui">
+    <div>
+      <label for="speedRange">Velocidade do tempo: <span id="speedValue">1</span>x</label><br>
+      <input type="range" id="speedRange" min="1" max="1000" value="1">
+    </div>
+    <div style="margin-top:8px;">
+      <label for="dateInput">Data:</label><br>
+      <input type="date" id="dateInput">
+    </div>
+    <div style="margin-top:8px;">
+      <span id="currentDate"></span>
+    </div>
+    <div style="margin-top:8px; font-size:12px;">
+      (Use o mouse para orbitar, dar zoom e pan)
+    </div>
+  </div>
 
-      const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 0, 4);
-
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+  <!-- Three.js e OrbitControls via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <script>
+  (function(){
+    // Criação da cena, câmera, renderer e carregador de texturas
+    let scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+    
+    let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+    camera.position.set(0, 200, 500);
+    
+    let renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    
+    let textureLoader = new THREE.TextureLoader();
+    
+    // Configuração dos controles (OrbitControls)
+    let controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    // Definindo limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
+    controls.minDistance = 3;
+    controls.maxDistance = 2000;
+    
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
-
-      // Carregador de texturas
-      const textureLoader = new THREE.TextureLoader();
-
-      // --- Criação do Planeta ---
-      const planetTexture = textureLoader.load('mapa-textura.jpg');
-      const planetDisplacement = textureLoader.load('mapa-displacement.jpg');
-
-      const planetGeometry = new THREE.SphereGeometry(1, 64, 64);
-      const planetMaterial = new THREE.MeshStandardMaterial({
-        color: 0x0000ff, // fallback azul
-        map: planetTexture,
-        displacementMap: planetDisplacement,
-        displacementScale: 0.1  // Ajuste conforme necessário
-      });
-
-      const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
-      scene.add(planetMesh);
-
-      // --- Criação da Lua ---
-      const moonTexture = textureLoader.load('lua-textura.jpg');
-      const moonDisplacement = textureLoader.load('lua-displacement.jpg');
-
-      // Agora a lua tem 1/4 do tamanho do planeta (raio 0.25)
-      const moonGeometry = new THREE.SphereGeometry(0.25, 32, 32);
-      const moonMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff, // fallback branco
-        map: moonTexture,
-        displacementMap: moonDisplacement,
-        displacementScale: 0.05  // Ajuste conforme necessário
-      });
-
-      const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
-
-      // Grupos para simular a órbita e a inclinação do plano orbital
-      const moonOrbitGroup = new THREE.Group();
-      scene.add(moonOrbitGroup);
-
-      const moonOrbitTiltGroup = new THREE.Group();
-      moonOrbitGroup.add(moonOrbitTiltGroup);
-
-      // Posiciona a lua a uma distância definida do planeta (ex.: 2 unidades)
-      const orbitDistance = 2;
-      moonMesh.position.set(orbitDistance, 0, 0);
-      moonOrbitTiltGroup.add(moonMesh);
-
-      // --- Iluminação ---
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-      directionalLight.position.set(5, 5, 5);
-      scene.add(directionalLight);
-
-      // --- Animação ---
-      function animate() {
-        requestAnimationFrame(animate);
-
-        const elapsed = performance.now() / 1000; // tempo em segundos
-
-        // Rotação lenta do planeta para dinamismo
-        planetMesh.rotation.y += 0.001;
-
-        // Movimento orbital: completa 360° a cada 10 segundos
-        const orbitPeriod = 10; // segundos
-        const orbitAngle = (elapsed * 2 * Math.PI / orbitPeriod) % (2 * Math.PI);
-        moonOrbitGroup.rotation.y = orbitAngle;
-
-        // Inclinação do plano orbital: aumenta +15° a cada órbita (10s)
-        const tiltIncrement = 15 * Math.PI / 180; // 15° em radianos
-        const tiltAngle = (elapsed / orbitPeriod) * tiltIncrement;
-        moonOrbitTiltGroup.rotation.x = tiltAngle;
-
-        renderer.render(scene, camera);
+    });
+    
+    // Interface de controle de tempo/data
+    const speedRange = document.getElementById('speedRange');
+    const speedValue = document.getElementById('speedValue');
+    const dateInput = document.getElementById('dateInput');
+    const currentDateLabel = document.getElementById('currentDate');
+    
+    let timeSpeed = Number(speedRange.value); // (dias por segundo)
+    speedRange.addEventListener('input', function(){
+      timeSpeed = Number(this.value);
+      speedValue.textContent = timeSpeed;
+    });
+    
+    const refDate = new Date();
+    dateInput.value = formatDate(refDate);
+    let simulationTime = 0; // em dias desde a data de referência
+    
+    dateInput.addEventListener('change', function(){
+      let newDate = new Date(this.value);
+      simulationTime = (newDate - refDate) / 86400000;
+    });
+    
+    function formatDate(date) {
+      let yyyy = date.getFullYear();
+      let mm = String(date.getMonth() + 1).padStart(2, '0');
+      let dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    
+    // Função para converter graus em radianos
+    function deg2rad(deg) {
+      return deg * Math.PI / 180;
+    }
+    
+    // Função para resolver a equação de Kepler: M = E - e*sin(E)
+    function solveKepler(M, e, tolerance = 1e-6) {
+      let E = M;
+      let delta = 1;
+      while (Math.abs(delta) > tolerance) {
+        delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+        E = E - delta;
       }
-      animate();
-
-      // Ajusta o renderizador se a janela for redimensionada
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+      return E;
+    }
+    
+    // Calcula a posição do planeta (em unidades de cena) a partir dos elementos orbitais
+    function getPlanetPosition(planet, time) {
+      let a = planet.a;            // semieixo maior (UA)
+      let e = planet.e;            // excentricidade
+      let i = deg2rad(planet.i);   // inclinação
+      let Ω = deg2rad(planet.Ω);   // nó ascendente
+      let ω = deg2rad(planet.ω);   // argumento do periélio
+      let M0 = deg2rad(planet.M0); // anomalia média na época de referência
+      let period = planet.period;  // período orbital (dias)
+      
+      let n = 2 * Math.PI / period; // movimento médio (rad/dia)
+      let M = M0 + n * time;
+      M = M % (2 * Math.PI);
+      
+      let E = solveKepler(M, e);
+      let f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+      let r = a * (1 - e * Math.cos(E));
+      
+      // Conversão para coordenadas 3D:
+      let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+      let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+      let Z = r * (Math.sin(ω + f) * Math.sin(i));
+      
+      // Escala: 1 UA = 50 unidades de cena. Para deixar o plano eclíptico horizontal, trocamos Y e Z.
+      let scale = 50;
+      return new THREE.Vector3(X * scale, Z * scale, Y * scale);
+    }
+    
+    // Gera pontos para desenhar a órbita do planeta (curva elíptica)
+    function getOrbitPoints(planet, numPoints = 100) {
+      let points = [];
+      let a = planet.a;
+      let e = planet.e;
+      let i = deg2rad(planet.i);
+      let Ω = deg2rad(planet.Ω);
+      let ω = deg2rad(planet.ω);
+      
+      for (let j = 0; j <= numPoints; j++) {
+        let f = 2 * Math.PI * j / numPoints;
+        let r = a * (1 - e * e) / (1 + e * Math.cos(f));
+        let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+        let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+        let Z = r * (Math.sin(ω + f) * Math.sin(i));
+        let scale = 50;
+        points.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
+      }
+      return points;
+    }
+    
+    // Dados dos planetas (elementos orbitais)
+    const planetsData = [
+      { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97 },
+      { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70 },
+      { name: "Terra",   a: 1.000, e: 0.0167, i: 0.000,  Ω: 0.000,  ω: 102.937, M0: 357.517, period: 365.256 },
+      { name: "Marte",   a: 1.524, e: 0.0934, i: 1.850,  Ω: 49.558, ω: 286.502, M0: 19.373,  period: 686.980 },
+      // Planeta customizado “Nope” (entre Terra e Marte)
+      { name: "Nope",    a: 1.59,  e: 0.3,   i: 90.0,   Ω: 0.0,    ω: 0.0,     M0: 0.0,     period: 730 },
+      { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304,  Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59 },
+      { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485,  Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22 },
+      { name: "Urano",   a: 19.191, e: 0.0463, i: 0.773,  Ω: 74.006,  ω: 96.998,  M0: 142.238, period: 30685.4 },
+      { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190 }
+    ];
+    
+    // Dicionário com os nomes dos arquivos de textura e displacement para cada planeta
+    const textureMap = {
+      "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0x888888 },
+      "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffc0cb },
+      "Terra":   { texture: "earth-texture.jpg", displacement: "earth-displacement.jpg", fallbackColor: 0x0000ff },
+      "Marte":   { texture: "mars-texture.jpg", displacement: "mars-displacement.jpg", fallbackColor: 0xff0000 },
+      "Nope":    { texture: "nope-texture.jpg", displacement: "nope-displacement.jpg", fallbackColor: 0x800080 },
+      "Júpiter": { texture: "jupiter-texture.jpg", displacement: "jupiter-displacement.jpg", fallbackColor: 0xffa500 },
+      "Saturno": { texture: "saturn-texture.jpg", displacement: "saturn-displacement.jpg", fallbackColor: 0xffff00 },
+      "Urano":   { texture: "uranus-texture.jpg", displacement: "uranus-displacement.jpg", fallbackColor: 0x00ffff },
+      "Netuno":  { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0x0000ff }
+    };
+    
+    // Criação do Sol
+    let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+    let sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    scene.add(sun);
+    
+    // Criação dos planetas e suas órbitas
+    let planets = [];
+    let nopeMesh, earthMesh; // para referência no zoom e nas luas
+    planetsData.forEach(planetData => {
+      // Define o tamanho do planeta (em unidades de cena)
+      let size;
+      switch(planetData.name) {
+        case "Mercúrio": size = 2.5; break;
+        case "Vênus":   size = 3;   break;
+        case "Terra":   size = 3.5; break;
+        case "Marte":   size = 3;   break;
+        case "Nope":    size = 3;   break;
+        case "Júpiter": size = 7;   break;
+        case "Saturno": size = 6;   break;
+        case "Urano":   size = 5;   break;
+        case "Netuno":  size = 5;   break;
+        default:        size = 3;
+      }
+      
+      let geometry = new THREE.SphereGeometry(size, 32, 32);
+      // Obtém os dados de textura para este planeta
+      let texData = textureMap[planetData.name];
+      let texture = textureLoader.load(texData.texture);
+      let displacement = textureLoader.load(texData.displacement);
+      
+      let material = new THREE.MeshStandardMaterial({
+        color: texData.fallbackColor,
+        map: texture,
+        displacementMap: displacement,
+        displacementScale: size * 0.2
       });
-    </script>
-  </body>
+      
+      let mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+      planetData.mesh = mesh;
+      planets.push(planetData);
+      
+      if (planetData.name === "Nope") {
+        nopeMesh = mesh;
+      }
+      if (planetData.name === "Terra") {
+        earthMesh = mesh;
+      }
+      
+      // Cria a linha representando a órbita
+      let orbitPoints = getOrbitPoints(planetData, 200);
+      let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+      let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+      let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
+      scene.add(orbitLine);
+    });
+    
+    // Criação da Lua da Terra
+    let earthMoonOrbitGroup = new THREE.Group();
+    earthMoonOrbitGroup.position.set(0, 0, 0);
+    earthMesh.add(earthMoonOrbitGroup);
+    
+    let earthMoonSize = earthMesh.geometry.parameters.radius / 4; // 1/4 do tamanho da Terra
+    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 16, 16);
+    let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
+    let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
+    let earthMoonMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: earthMoonTexture,
+      displacementMap: earthMoonDisplacement,
+      displacementScale: earthMoonSize * 0.2
+    });
+    let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
+    // Posiciona a lua a uma distância (ex.: 8 unidades) da Terra
+    earthMoonMesh.position.set(8, 0, 0);
+    earthMoonOrbitGroup.add(earthMoonMesh);
+    // Período orbital (em dias de simulação) para a lua da Terra
+    let earthMoonPeriod = 10;
+    
+    // Criação da Lua de Nope
+    let nopeMoonOrbitGroup = new THREE.Group();
+    nopeMoonOrbitGroup.position.set(0, 0, 0);
+    nopeMesh.add(nopeMoonOrbitGroup);
+    
+    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4; // 1/4 do tamanho de Nope
+    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 16, 16);
+    let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
+    let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
+    let nopeMoonMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: nopeMoonTexture,
+      displacementMap: nopeMoonDisplacement,
+      displacementScale: nopeMoonSize * 0.2
+    });
+    let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
+    // Posiciona a lua de Nope a uma distância (ex.: 6 unidades) do planeta
+    nopeMoonMesh.position.set(6, 0, 0);
+    nopeMoonOrbitGroup.add(nopeMoonMesh);
+    // Período orbital (em dias de simulação) para a lua de Nope
+    let nopeMoonPeriod = 10;
+    
+    // Iluminação
+    let ambientLight = new THREE.AmbientLight(0x333333);
+    scene.add(ambientLight);
+    let directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(100, 100, 100);
+    scene.add(directionalLight);
+    
+    let lastFrameTime = performance.now();
+    
+    // Inicialmente, centraliza os controles no planeta Nope
+    if (nopeMesh) {
+      controls.target.copy(nopeMesh.position);
+    }
+    
+    function animate() {
+      requestAnimationFrame(animate);
+      let now = performance.now();
+      let dt = (now - lastFrameTime) / 1000; // segundos
+      lastFrameTime = now;
+      
+      simulationTime += dt * timeSpeed;
+      let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
+      currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
+      
+      // Atualiza a posição de cada planeta conforme sua órbita elíptica
+      planets.forEach(planet => {
+        let pos = getPlanetPosition(planet, simulationTime);
+        planet.mesh.position.copy(pos);
+      });
+      
+      // Atualiza a rotação dos grupos das luas
+      let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
+      earthMoonOrbitGroup.rotation.y = earthMoonAngle;
+      
+      let nopeMoonAngle = (simulationTime * 2 * Math.PI / nopeMoonPeriod) % (2 * Math.PI);
+      nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
+      // Acrescenta uma inclinação de 15° por órbita para a lua de Nope
+      let tiltIncrement = deg2rad(15);
+      let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
+      nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
+      
+      // Atualiza o alvo dos controles para seguir o planeta Nope
+      if (nopeMesh) {
+        controls.target.copy(nopeMesh.position);
+      }
+      
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    
+    animate();
+  })();
+  </script>
+</body>
 </html>
