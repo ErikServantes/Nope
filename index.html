@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8">
+    <title>Planeta com Lua Orbitante</title>
+    <style>
+      /* Remove margens, oculta barras de rolagem e define fundo preto para simular o espaço */
+      body { margin: 0; overflow: hidden; background: #000; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <!-- Importa a biblioteca Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // Criação da cena, câmera e renderizador
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000); // Fundo preto
+
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 4);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Carregador de texturas
+      const textureLoader = new THREE.TextureLoader();
+
+      // --- Criação do Planeta ---
+      const planetTexture = textureLoader.load('mapa-textura.jpg');
+      const planetDisplacement = textureLoader.load('mapa-displacement.jpg');
+
+      const planetGeometry = new THREE.SphereGeometry(1, 64, 64);
+      const planetMaterial = new THREE.MeshStandardMaterial({
+        color: 0x0000ff, // fallback azul
+        map: planetTexture,
+        displacementMap: planetDisplacement,
+        displacementScale: 0.1  // Ajuste conforme necessário
+      });
+
+      const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
+      scene.add(planetMesh);
+
+      // --- Criação da Lua ---
+      const moonTexture = textureLoader.load('lua-textura.jpg');
+      const moonDisplacement = textureLoader.load('lua-displacement.jpg');
+
+      // Agora a lua tem 1/4 do tamanho do planeta (raio 0.25)
+      const moonGeometry = new THREE.SphereGeometry(0.25, 32, 32);
+      const moonMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff, // fallback branco
+        map: moonTexture,
+        displacementMap: moonDisplacement,
+        displacementScale: 0.05  // Ajuste conforme necessário
+      });
+
+      const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+
+      // Grupos para simular a órbita e a inclinação do plano orbital
+      const moonOrbitGroup = new THREE.Group();
+      scene.add(moonOrbitGroup);
+
+      const moonOrbitTiltGroup = new THREE.Group();
+      moonOrbitGroup.add(moonOrbitTiltGroup);
+
+      // Posiciona a lua a uma distância definida do planeta (ex.: 2 unidades)
+      const orbitDistance = 2;
+      moonMesh.position.set(orbitDistance, 0, 0);
+      moonOrbitTiltGroup.add(moonMesh);
+
+      // --- Iluminação ---
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(5, 5, 5);
+      scene.add(directionalLight);
+
+      // --- Animação ---
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const elapsed = performance.now() / 1000; // tempo em segundos
+
+        // Rotação lenta do planeta para dinamismo
+        planetMesh.rotation.y += 0.001;
+
+        // Movimento orbital: completa 360° a cada 10 segundos
+        const orbitPeriod = 10; // segundos
+        const orbitAngle = (elapsed * 2 * Math.PI / orbitPeriod) % (2 * Math.PI);
+        moonOrbitGroup.rotation.y = orbitAngle;
+
+        // Inclinação do plano orbital: aumenta +15° a cada órbita (10s)
+        const tiltIncrement = 15 * Math.PI / 180; // 15° em radianos
+        const tiltAngle = (elapsed / orbitPeriod) * tiltIncrement;
+        moonOrbitTiltGroup.rotation.x = tiltAngle;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Ajusta o renderizador se a janela for redimensionada
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
