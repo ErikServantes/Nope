@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação 3D do Sistema Solar com Rotação Axial</title>
+  <title>Simulação 3D do Sistema Solar com Luz Única do Sol e Textura no Sol</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
     #ui {
@@ -159,7 +159,7 @@
       return points;
     }
     
-    // Dados dos planetas com elementos orbitais e período de rotação (em horas)
+    // Dados dos planetas (elementos orbitais e período de rotação em horas)
     const planetsData = [
       { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97, rotationPeriod: 1407.6 },
       { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70, rotationPeriod: -5832 },
@@ -172,7 +172,7 @@
       { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com os arquivos de textura e displacement (cores definidas como branco para não alterar as cores)
+    // Dicionário com os arquivos de textura e displacement para cada planeta (cores em branco para preservar a textura)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -185,11 +185,18 @@
       "Netuno":  { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0xffffff }
     };
     
-    // Criação do Sol
+    // Criação do Sol com textura
     let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
-    let sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    let sunTexture = textureLoader.load("sun-texture.jpg");
+    // Usamos MeshBasicMaterial para o sol, que é autoiluminado
+    let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
     let sun = new THREE.Mesh(sunGeometry, sunMaterial);
     scene.add(sun);
+    
+    // Adiciona uma PointLight ao Sol para que ele ilumine a cena
+    let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
+    sunLight.position.set(0,0,0);
+    sun.add(sunLight);
     
     // Criação dos planetas e suas órbitas
     let planets = [];
@@ -295,12 +302,7 @@
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10;
     
-    // Iluminação
-    let ambientLight = new THREE.AmbientLight(0x333333);
-    scene.add(ambientLight);
-    let directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(100, 100, 100);
-    scene.add(directionalLight);
+    // Removemos qualquer outra fonte de luz e usamos somente a luz do Sol (já adicionada como PointLight)
     
     let lastFrameTime = performance.now();
     
@@ -319,8 +321,16 @@
         let t = (normalizedZoom - 0.60) / (0.95 - 0.60);
         newTarget.copy(sun.position).lerp(nopeMesh.position, t);
       }
-      // Suaviza a transição do alvo
       controls.target.lerp(newTarget, 0.1);
+    }
+    
+    // Atualiza a rotação axial de cada planeta para simular o dia
+    function updatePlanetRotation(planet, time) {
+      if (planet.rotationPeriod) {
+        let rotationPeriodDays = planet.rotationPeriod / 24; // converte horas em dias
+        let angle = time * (2 * Math.PI / rotationPeriodDays);
+        planet.mesh.rotation.y = angle;
+      }
     }
     
     function animate() {
@@ -339,14 +349,9 @@
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza a rotação axial de cada planeta, de acordo com seu período (em horas)
+      // Atualiza a rotação axial de cada planeta
       planets.forEach(planet => {
-        if (planet.rotationPeriod) {
-          // Converte o período de rotação para dias e calcula o ângulo
-          let rotationPeriodDays = planet.rotationPeriod / 24;
-          let angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
-          planet.mesh.rotation.y = angle;
-        }
+        updatePlanetRotation(planet, simulationTime);
       });
       
       // Atualiza a rotação orbital das luas
