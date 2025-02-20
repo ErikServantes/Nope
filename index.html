@@ -214,18 +214,34 @@
         default:        size = 3;
       }
       
-      let geometry = new THREE.SphereGeometry(size, 32, 32);
-      // Obtém os dados de textura para este planeta
+      // Para "Terra", "Marte" e "Nope", aumentamos a resolução (10x maior)
+      let segments;
+      if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
+        segments = 320; // 10x a resolução original (se antes usávamos 32, agora 320)
+      } else {
+        segments = 16;  // reduzimos a complexidade para os demais
+      }
+      
+      let geometry = new THREE.SphereGeometry(size, segments, segments);
       let texData = textureMap[planetData.name];
       let texture = textureLoader.load(texData.texture);
       let displacement = textureLoader.load(texData.displacement);
       
-      let material = new THREE.MeshStandardMaterial({
-        color: texData.fallbackColor,
-        map: texture,
-        displacementMap: displacement,
-        displacementScale: size * 0.2
-      });
+      let material;
+      // Apenas para Terra, Marte e Nope usamos o displacement map
+      if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
+        material = new THREE.MeshStandardMaterial({
+          color: texData.fallbackColor,
+          map: texture,
+          displacementMap: displacement,
+          displacementScale: size * 0.2
+        });
+      } else {
+        material = new THREE.MeshStandardMaterial({
+          color: texData.fallbackColor,
+          map: texture
+        });
+      }
       
       let mesh = new THREE.Mesh(geometry, material);
       scene.add(mesh);
@@ -247,13 +263,13 @@
       scene.add(orbitLine);
     });
     
-    // Criação da Lua da Terra
+    // Criação da Lua da Terra (aumentada 10x: 160 segmentos)
     let earthMoonOrbitGroup = new THREE.Group();
     earthMoonOrbitGroup.position.set(0, 0, 0);
     earthMesh.add(earthMoonOrbitGroup);
     
     let earthMoonSize = earthMesh.geometry.parameters.radius / 4; // 1/4 do tamanho da Terra
-    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 16, 16);
+    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
     let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
     let earthMoonMaterial = new THREE.MeshStandardMaterial({
@@ -266,16 +282,15 @@
     // Posiciona a lua a uma distância (ex.: 8 unidades) da Terra
     earthMoonMesh.position.set(8, 0, 0);
     earthMoonOrbitGroup.add(earthMoonMesh);
-    // Período orbital (em dias de simulação) para a lua da Terra
-    let earthMoonPeriod = 10;
+    let earthMoonPeriod = 10; // dias de simulação
     
-    // Criação da Lua de Nope
+    // Criação da Lua de Nope (aumentada 10x: 160 segmentos)
     let nopeMoonOrbitGroup = new THREE.Group();
     nopeMoonOrbitGroup.position.set(0, 0, 0);
     nopeMesh.add(nopeMoonOrbitGroup);
     
     let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4; // 1/4 do tamanho de Nope
-    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 16, 16);
+    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
     let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
     let nopeMoonMaterial = new THREE.MeshStandardMaterial({
@@ -288,8 +303,7 @@
     // Posiciona a lua de Nope a uma distância (ex.: 6 unidades) do planeta
     nopeMoonMesh.position.set(6, 0, 0);
     nopeMoonOrbitGroup.add(nopeMoonMesh);
-    // Período orbital (em dias de simulação) para a lua de Nope
-    let nopeMoonPeriod = 10;
+    let nopeMoonPeriod = 10; // dias de simulação
     
     // Iluminação
     let ambientLight = new THREE.AmbientLight(0x333333);
