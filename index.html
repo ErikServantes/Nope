@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação 3D do Sistema Solar com Foco Dinâmico</title>
+  <title>Simulação 3D do Sistema Solar com Rotação Axial</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
     #ui {
@@ -112,7 +112,7 @@
       return E;
     }
     
-    // Calcula a posição do planeta a partir dos elementos orbitais
+    // Calcula a posição orbital do planeta (em unidades de cena) a partir dos elementos orbitais
     function getPlanetPosition(planet, time) {
       let a = planet.a;
       let e = planet.e;
@@ -159,20 +159,20 @@
       return points;
     }
     
-    // Dados dos planetas (elementos orbitais)
+    // Dados dos planetas com elementos orbitais e período de rotação (em horas)
     const planetsData = [
-      { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97 },
-      { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70 },
-      { name: "Terra",   a: 1.000, e: 0.0167, i: 0.000,  Ω: 0.000,  ω: 102.937, M0: 357.517, period: 365.256 },
-      { name: "Marte",   a: 1.524, e: 0.0934, i: 1.850,  Ω: 49.558, ω: 286.502, M0: 19.373,  period: 686.980 },
-      { name: "Nope",    a: 1.59,  e: 0.3,   i: 90.0,   Ω: 0.0,    ω: 0.0,     M0: 0.0,     period: 730 },
-      { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304,  Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59 },
-      { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485,  Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22 },
-      { name: "Urano",   a: 19.191, e: 0.0463, i: 0.773,  Ω: 74.006,  ω: 96.998,  M0: 142.238, period: 30685.4 },
-      { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190 }
+      { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97, rotationPeriod: 1407.6 },
+      { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70, rotationPeriod: -5832 },
+      { name: "Terra",   a: 1.000, e: 0.0167, i: 0.000,  Ω: 0.000,  ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24 },
+      { name: "Marte",   a: 1.524, e: 0.0934, i: 1.850,  Ω: 49.558, ω: 286.502, M0: 19.373,  period: 686.980, rotationPeriod: 24.6 },
+      { name: "Nope",    a: 1.59,  e: 0.3,   i: 90.0,   Ω: 0.0,    ω: 0.0,     M0: 0.0,     period: 730, rotationPeriod: 26 },
+      { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304,  Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59, rotationPeriod: 9.9 },
+      { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485,  Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22, rotationPeriod: 10.7 },
+      { name: "Urano",   a: 19.191, e: 0.0463, i: 0.773,  Ω: 74.006,  ω: 96.998,  M0: 142.238, period: 30685.4, rotationPeriod: 17.2 },
+      { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com os nomes dos arquivos de textura e displacement para cada planeta
+    // Dicionário com os arquivos de textura e displacement (cores definidas como branco para não alterar as cores)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -304,7 +304,7 @@
     
     let lastFrameTime = performance.now();
     
-    // Atualiza o alvo dos controles com base no nível de zoom
+    // Atualiza o alvo dos controles com base no nível de zoom (foco dinâmico)
     function updateControlsTarget() {
       let d = camera.position.length();
       let normalizedZoom = 1 - (d - controls.minDistance) / (controls.maxDistance - controls.minDistance);
@@ -319,7 +319,8 @@
         let t = (normalizedZoom - 0.60) / (0.95 - 0.60);
         newTarget.copy(sun.position).lerp(nopeMesh.position, t);
       }
-      controls.target.copy(newTarget);
+      // Suaviza a transição do alvo
+      controls.target.lerp(newTarget, 0.1);
     }
     
     function animate() {
@@ -332,11 +333,23 @@
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
+      // Atualiza a posição orbital dos planetas
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
+      // Atualiza a rotação axial de cada planeta, de acordo com seu período (em horas)
+      planets.forEach(planet => {
+        if (planet.rotationPeriod) {
+          // Converte o período de rotação para dias e calcula o ângulo
+          let rotationPeriodDays = planet.rotationPeriod / 24;
+          let angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
+          planet.mesh.rotation.y = angle;
+        }
+      });
+      
+      // Atualiza a rotação orbital das luas
       let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
