@@ -59,7 +59,6 @@
     let controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    // Definindo limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
     controls.minDistance = 3;
     controls.maxDistance = 2000;
     
@@ -113,17 +112,17 @@
       return E;
     }
     
-    // Calcula a posição do planeta (em unidades de cena) a partir dos elementos orbitais
+    // Calcula a posição do planeta a partir dos elementos orbitais
     function getPlanetPosition(planet, time) {
-      let a = planet.a;            // semieixo maior (UA)
-      let e = planet.e;            // excentricidade
-      let i = deg2rad(planet.i);   // inclinação
-      let Ω = deg2rad(planet.Ω);   // nó ascendente
-      let ω = deg2rad(planet.ω);   // argumento do periélio
-      let M0 = deg2rad(planet.M0); // anomalia média na época de referência
-      let period = planet.period;  // período orbital (dias)
+      let a = planet.a;
+      let e = planet.e;
+      let i = deg2rad(planet.i);
+      let Ω = deg2rad(planet.Ω);
+      let ω = deg2rad(planet.ω);
+      let M0 = deg2rad(planet.M0);
+      let period = planet.period;
       
-      let n = 2 * Math.PI / period; // movimento médio (rad/dia)
+      let n = 2 * Math.PI / period;
       let M = M0 + n * time;
       M = M % (2 * Math.PI);
       
@@ -131,17 +130,15 @@
       let f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
       let r = a * (1 - e * Math.cos(E));
       
-      // Conversão para coordenadas 3D:
       let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
       let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
       let Z = r * (Math.sin(ω + f) * Math.sin(i));
       
-      // Escala: 1 UA = 50 unidades de cena. Para deixar o plano eclíptico horizontal, trocamos Y e Z.
       let scale = 50;
       return new THREE.Vector3(X * scale, Z * scale, Y * scale);
     }
     
-    // Gera pontos para desenhar a órbita do planeta (curva elíptica)
+    // Gera pontos para desenhar a órbita (curva elíptica)
     function getOrbitPoints(planet, numPoints = 100) {
       let points = [];
       let a = planet.a;
@@ -168,7 +165,6 @@
       { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70 },
       { name: "Terra",   a: 1.000, e: 0.0167, i: 0.000,  Ω: 0.000,  ω: 102.937, M0: 357.517, period: 365.256 },
       { name: "Marte",   a: 1.524, e: 0.0934, i: 1.850,  Ω: 49.558, ω: 286.502, M0: 19.373,  period: 686.980 },
-      // Planeta customizado “Nope” (entre Terra e Marte)
       { name: "Nope",    a: 1.59,  e: 0.3,   i: 90.0,   Ω: 0.0,    ω: 0.0,     M0: 0.0,     period: 730 },
       { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304,  Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59 },
       { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485,  Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22 },
@@ -197,9 +193,8 @@
     
     // Criação dos planetas e suas órbitas
     let planets = [];
-    let nopeMesh, earthMesh; // para referência no zoom e nas luas
+    let nopeMesh, earthMesh;
     planetsData.forEach(planetData => {
-      // Define o tamanho do planeta (em unidades de cena)
       let size;
       switch(planetData.name) {
         case "Mercúrio": size = 2.5; break;
@@ -214,7 +209,6 @@
         default:        size = 3;
       }
       
-      // Para "Terra", "Marte" e "Nope", aumentamos a resolução (10x maior)
       let segments;
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
         segments = 320;
@@ -254,7 +248,6 @@
         earthMesh = mesh;
       }
       
-      // Cria a linha representando a órbita
       let orbitPoints = getOrbitPoints(planetData, 200);
       let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
       let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
@@ -262,7 +255,7 @@
       scene.add(orbitLine);
     });
     
-    // Criação da Lua da Terra (aumentada 10x: 160 segmentos)
+    // Criação da Lua da Terra (160 segmentos)
     let earthMoonOrbitGroup = new THREE.Group();
     earthMoonOrbitGroup.position.set(0, 0, 0);
     earthMesh.add(earthMoonOrbitGroup);
@@ -282,7 +275,7 @@
     earthMoonOrbitGroup.add(earthMoonMesh);
     let earthMoonPeriod = 10;
     
-    // Criação da Lua de Nope (aumentada 10x: 160 segmentos)
+    // Criação da Lua de Nope (160 segmentos)
     let nopeMoonOrbitGroup = new THREE.Group();
     nopeMoonOrbitGroup.position.set(0, 0, 0);
     nopeMesh.add(nopeMoonOrbitGroup);
@@ -311,26 +304,19 @@
     
     let lastFrameTime = performance.now();
     
-    // Em vez de sempre centralizar em Nope, vamos atualizar o alvo (controls.target)
-    // de forma dinâmica com base no nível de zoom.
+    // Atualiza o alvo dos controles com base no nível de zoom
     function updateControlsTarget() {
-      // Usamos a distância da câmera em relação ao Sol (que está na origem)
-      let d = camera.position.length(); // distância do Sol
-      let minD = controls.minDistance;  // 3
-      let maxD = controls.maxDistance;  // 2000
-      let normalizedZoom = 1 - (d - minD) / (maxD - minD);
+      let d = camera.position.length();
+      let normalizedZoom = 1 - (d - controls.minDistance) / (controls.maxDistance - controls.minDistance);
       normalizedZoom = THREE.MathUtils.clamp(normalizedZoom, 0, 1);
       
       let newTarget = new THREE.Vector3();
-      if (normalizedZoom < 0.5) {
-        // Zoom baixo: foco no Sol
+      if (normalizedZoom < 0.60) {
         newTarget.copy(sun.position);
-      } else if (normalizedZoom > 0.75) {
-        // Zoom alto: foco em Nope
+      } else if (normalizedZoom > 0.95) {
         newTarget.copy(nopeMesh.position);
       } else {
-        // Entre 50% e 75%: interpolação entre Sol e Nope
-        let t = (normalizedZoom - 0.5) / (0.75 - 0.5);
+        let t = (normalizedZoom - 0.60) / (0.95 - 0.60);
         newTarget.copy(sun.position).lerp(nopeMesh.position, t);
       }
       controls.target.copy(newTarget);
@@ -339,20 +325,18 @@
     function animate() {
       requestAnimationFrame(animate);
       let now = performance.now();
-      let dt = (now - lastFrameTime) / 1000; // segundos
+      let dt = (now - lastFrameTime) / 1000;
       lastFrameTime = now;
       
       simulationTime += dt * timeSpeed;
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza a posição de cada planeta conforme sua órbita elíptica
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza a rotação dos grupos das luas
       let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
@@ -362,9 +346,7 @@
       let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
       
-      // Atualiza o alvo dos controles com base no zoom
       updateControlsTarget();
-      
       controls.update();
       renderer.render(scene, camera);
     }
