@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação 3D do Sistema Solar – Velocidade Ajustável e Diagnóstico de Zoom</title>
+  <title>Simulação 3D do Sistema Solar – Velocidade e Zoom Real</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
     #ui {
@@ -33,7 +33,7 @@
   <div id="ui">
     <div>
       <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
-      <input type="range" id="speedRange" min="1" max="10" step="0.1" value="1">
+      <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
     </div>
     <div style="margin-top:8px;">
       <button id="speedDown">–</button>
@@ -47,13 +47,13 @@
       <span id="currentDate"></span>
     </div>
     <div style="margin-top:8px; font-size:12px;">
-      (Use o mouse ou toque para orbitar, dar zoom e pan)
+      (Use mouse ou toque para orbitar, dar zoom e pan)
     </div>
   </div>
 
   <!-- Diagnóstico: Zoom -->
   <div id="diagnostics">
-    Zoom: <span id="zoomValue">0%</span>
+    Zoom (distância): <span id="zoomValue">0</span> units
   </div>
 
   <!-- Three.js e OrbitControls via CDN -->
@@ -75,7 +75,7 @@
     
     let textureLoader = new THREE.TextureLoader();
     
-    // Configuração dos controles
+    // Configuração dos controles (OrbitControls)
     let controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -97,33 +97,24 @@
     const currentDateLabel = document.getElementById('currentDate');
     const zoomValue = document.getElementById('zoomValue');
     
-    // Velocidade: slider de 1 a 10. Usaremos uma função exponencial para mapear para "dias/segundo".
-    // Quando S=1: factor ≈ 0.00001159 (a Terra leva 1 ano para orbitar)
-    // Quando S=10: factor ≈ 12.1752 (a Terra orbita em 30 segundos)
-    const baseFactor = 0.00001159;
-    const exponent = 13.87; // ln(12.1752/0.00001159)
-    
-    function getSpeedFactor(S) {
-      return baseFactor * Math.exp( exponent * (S - 1) / 9 );
-    }
-    
-    let speedSetting = parseFloat(speedRange.value);
+    // O slider agora é inteiro de 1 a 10
+    let speedSetting = parseInt(speedRange.value);
     speedValue.textContent = speedSetting;
     
-    // Permite ajuste com os botões (para dispositivos móveis)
+    // Os botões para ajuste (mobile)
     speedDown.addEventListener('click', () => {
-      speedSetting = Math.max(1, speedSetting - 0.1);
+      speedSetting = Math.max(1, speedSetting - 1);
       speedRange.value = speedSetting;
-      speedValue.textContent = speedSetting.toFixed(1);
+      speedValue.textContent = speedSetting;
     });
     speedUp.addEventListener('click', () => {
-      speedSetting = Math.min(10, speedSetting + 0.1);
+      speedSetting = Math.min(10, speedSetting + 1);
       speedRange.value = speedSetting;
-      speedValue.textContent = speedSetting.toFixed(1);
+      speedValue.textContent = speedSetting;
     });
     speedRange.addEventListener('input', function(){
-      speedSetting = parseFloat(this.value);
-      speedValue.textContent = speedSetting.toFixed(1);
+      speedSetting = parseInt(this.value);
+      speedValue.textContent = speedSetting;
     });
     
     // Data de referência
@@ -159,7 +150,7 @@
       return E;
     }
     
-    // Calcula a posição orbital de um planeta (em unidades de cena)
+    // Calcula a posição orbital de um planeta (em unidades de cena) a partir dos elementos orbitais
     function getPlanetPosition(planet, time) {
       let a = planet.a, e = planet.e, i = deg2rad(planet.i),
           Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
@@ -176,7 +167,7 @@
       return new THREE.Vector3(X * scale, Z * scale, Y * scale);
     }
     
-    // Gera pontos para desenhar a órbita
+    // Gera pontos para desenhar a órbita (curva elíptica)
     function getOrbitPoints(planet, numPoints = 100) {
       let points = [];
       let a = planet.a, e = planet.e, i = deg2rad(planet.i),
@@ -193,7 +184,7 @@
       return points;
     }
     
-    // Dados dos planetas (com elementos orbitais e período de rotação em horas)
+    // Dados dos planetas (elementos orbitais e período de rotação em horas)
     const planetsData = [
       { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97, rotationPeriod: 1407.6 },
       { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70, rotationPeriod: -5832 },
@@ -206,7 +197,7 @@
       { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com arquivos de textura e displacement (cor branca para preservar a textura)
+    // Dicionário com arquivos de textura e displacement (cor branca para preservar as texturas)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -228,7 +219,7 @@
     
     // Luz única: PointLight no Sol
     let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
-    sunLight.position.set(0,0,0);
+    sunLight.position.set(0, 0, 0);
     sun.add(sunLight);
     
     // Criação dos planetas e suas órbitas
@@ -305,7 +296,6 @@
       displacementScale: earthMoonSize * 0.2
     });
     let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-    // Posição relativa à Terra (por exemplo, 8 unidades)
     earthMoonMesh.position.set(8, 0, 0);
     earthMoonOrbitGroup.add(earthMoonMesh);
     let earthMoonPeriod = 10;
@@ -331,6 +321,9 @@
     // Atualiza o alvo dos OrbitControls (foco interpolado entre Sol e Nope)
     function updateControlsTarget() {
       let d = camera.position.length();
+      // Aqui, em vez de uma porcentagem, podemos exibir o valor real da distância da câmera
+      zoomValue.textContent = d.toFixed(2);
+      
       let normalizedZoom = 1 - (d - controls.minDistance) / (controls.maxDistance - controls.minDistance);
       normalizedZoom = THREE.MathUtils.clamp(normalizedZoom, 0, 1);
       
@@ -344,8 +337,6 @@
         newTarget.copy(sun.position).lerp(nopeMesh.position, t);
       }
       controls.target.lerp(newTarget, 0.1);
-      // Atualiza também o diagnóstico de zoom (em %)
-      zoomValue.textContent = Math.round(normalizedZoom * 100) + "%";
     }
     
     // Atualiza a rotação axial de um planeta (simulando o dia)
@@ -365,25 +356,26 @@
       let dt = (now - lastFrameTime) / 1000;
       lastFrameTime = now;
       
-      // Calcula o speedFactor a partir do valor do slider (exponencial)
-      let speedFactor = getSpeedFactor(speedSetting);
+      // Calcula o speedFactor: número de translações da Terra por hora
+      // Earth orbital period = 365.256 days, 1 hora = 3600 s
+      let speedFactor = (speedSetting * 365.256) / 3600; // dias/segundo
       simulationTime += dt * speedFactor;
       
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza a posição orbital dos planetas
+      // Atualiza posição orbital dos planetas
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza a rotação axial (dia) de cada planeta
+      // Atualiza rotação axial (dia) de cada planeta
       planets.forEach(planet => {
         updatePlanetRotation(planet, simulationTime);
       });
       
-      // Atualiza a posição dos grupos de órbita das luas para que sigam seus planetas
+      // Atualiza a posição dos grupos de órbita das luas para que sigam os planetas
       earthMoonOrbitGroup.position.copy(earthMesh.position);
       nopeMoonOrbitGroup.position.copy(nopeMesh.position);
       
