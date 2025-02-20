@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação 3D do Sistema Solar com Texturas, Displacement Maps e Luas</title>
+  <title>Simulação 3D do Sistema Solar com Foco Dinâmico</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
     #ui {
@@ -311,26 +311,48 @@
     
     let lastFrameTime = performance.now();
     
-    // Centraliza os controles no planeta Nope
-    if (nopeMesh) {
-      controls.target.copy(nopeMesh.position);
+    // Em vez de sempre centralizar em Nope, vamos atualizar o alvo (controls.target)
+    // de forma dinâmica com base no nível de zoom.
+    function updateControlsTarget() {
+      // Usamos a distância da câmera em relação ao Sol (que está na origem)
+      let d = camera.position.length(); // distância do Sol
+      let minD = controls.minDistance;  // 3
+      let maxD = controls.maxDistance;  // 2000
+      let normalizedZoom = 1 - (d - minD) / (maxD - minD);
+      normalizedZoom = THREE.MathUtils.clamp(normalizedZoom, 0, 1);
+      
+      let newTarget = new THREE.Vector3();
+      if (normalizedZoom < 0.5) {
+        // Zoom baixo: foco no Sol
+        newTarget.copy(sun.position);
+      } else if (normalizedZoom > 0.75) {
+        // Zoom alto: foco em Nope
+        newTarget.copy(nopeMesh.position);
+      } else {
+        // Entre 50% e 75%: interpolação entre Sol e Nope
+        let t = (normalizedZoom - 0.5) / (0.75 - 0.5);
+        newTarget.copy(sun.position).lerp(nopeMesh.position, t);
+      }
+      controls.target.copy(newTarget);
     }
     
     function animate() {
       requestAnimationFrame(animate);
       let now = performance.now();
-      let dt = (now - lastFrameTime) / 1000;
+      let dt = (now - lastFrameTime) / 1000; // segundos
       lastFrameTime = now;
       
       simulationTime += dt * timeSpeed;
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
+      // Atualiza a posição de cada planeta conforme sua órbita elíptica
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
+      // Atualiza a rotação dos grupos das luas
       let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
@@ -340,9 +362,8 @@
       let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
       
-      if (nopeMesh) {
-        controls.target.copy(nopeMesh.position);
-      }
+      // Atualiza o alvo dos controles com base no zoom
+      updateControlsTarget();
       
       controls.update();
       renderer.render(scene, camera);
