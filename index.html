@@ -55,11 +55,14 @@
     
     let textureLoader = new THREE.TextureLoader();
     
+    // Fator de escala para as órbitas – dobrado (antes era 50, agora 100)
+    let orbitScale = 100;
+    
     // Configuração dos controles (OrbitControls)
     let controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    // Definindo limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
+    // Limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
     controls.minDistance = 3;
     controls.maxDistance = 2000;
     
@@ -136,9 +139,7 @@
       let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
       let Z = r * (Math.sin(ω + f) * Math.sin(i));
       
-      // Escala: 1 UA = 50 unidades de cena. Para deixar o plano eclíptico horizontal, trocamos Y e Z.
-      let scale = 50;
-      return new THREE.Vector3(X * scale, Z * scale, Y * scale);
+      return new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale);
     }
     
     // Gera pontos para desenhar a órbita do planeta (curva elíptica)
@@ -156,8 +157,7 @@
         let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
         let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
         let Z = r * (Math.sin(ω + f) * Math.sin(i));
-        let scale = 50;
-        points.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
+        points.push(new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale));
       }
       return points;
     }
@@ -214,12 +214,13 @@
         default:        size = 3;
       }
       
-      // Para "Terra", "Marte" e "Nope", aumentamos a resolução (10x maior)
+      // Para "Terra", "Marte" e "Nope" usamos alta resolução (10× maior que a base de 32 → 320, mas aqui usamos 320)
+      // Os demais planetas terão baixa resolução (16 segmentos)
       let segments;
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
-        segments = 320; // 10x a resolução original (se antes usávamos 32, agora 320)
+        segments = 320;
       } else {
-        segments = 16;  // reduzimos a complexidade para os demais
+        segments = 16;
       }
       
       let geometry = new THREE.SphereGeometry(size, segments, segments);
@@ -228,13 +229,13 @@
       let displacement = textureLoader.load(texData.displacement);
       
       let material;
-      // Apenas para Terra, Marte e Nope usamos o displacement map
+      // Apenas para Terra, Marte e Nope usamos displacement map com escala reduzida (1/4 do valor anterior)
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
         material = new THREE.MeshStandardMaterial({
           color: texData.fallbackColor,
           map: texture,
           displacementMap: displacement,
-          displacementScale: size * 0.2
+          displacementScale: size * 0.05
         });
       } else {
         material = new THREE.MeshStandardMaterial({
@@ -263,44 +264,46 @@
       scene.add(orbitLine);
     });
     
-    // Criação da Lua da Terra (aumentada 10x: 160 segmentos)
+    // Criação da Lua da Terra (resolução aumentada 10×: 1600 segmentos)
     let earthMoonOrbitGroup = new THREE.Group();
     earthMoonOrbitGroup.position.set(0, 0, 0);
     earthMesh.add(earthMoonOrbitGroup);
     
     let earthMoonSize = earthMesh.geometry.parameters.radius / 4; // 1/4 do tamanho da Terra
-    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
+    // Aumenta a resolução para 10×: 1600 segmentos
+    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 1600, 1600);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
     let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
     let earthMoonMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: earthMoonTexture,
       displacementMap: earthMoonDisplacement,
-      displacementScale: earthMoonSize * 0.2
+      displacementScale: earthMoonSize * 0.05
     });
     let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-    // Posiciona a lua a uma distância (ex.: 8 unidades) da Terra
-    earthMoonMesh.position.set(8, 0, 0);
+    // Aumenta a distância da lua da Terra para o dobro (antes era 8, agora 16)
+    earthMoonMesh.position.set(16, 0, 0);
     earthMoonOrbitGroup.add(earthMoonMesh);
     let earthMoonPeriod = 10; // dias de simulação
     
-    // Criação da Lua de Nope (aumentada 10x: 160 segmentos)
+    // Criação da Lua de Nope (resolução aumentada 10×: 1600 segmentos)
     let nopeMoonOrbitGroup = new THREE.Group();
     nopeMoonOrbitGroup.position.set(0, 0, 0);
     nopeMesh.add(nopeMoonOrbitGroup);
     
-    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4; // 1/4 do tamanho de Nope
-    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
+    // Reduz o tamanho da lua de Nope para metade (antes era raio/4, agora raio/8)
+    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 8;
+    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 1600, 1600);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
     let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
     let nopeMoonMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: nopeMoonTexture,
       displacementMap: nopeMoonDisplacement,
-      displacementScale: nopeMoonSize * 0.2
+      displacementScale: nopeMoonSize * 0.05
     });
     let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
-    // Posiciona a lua de Nope a uma distância (ex.: 6 unidades) do planeta
+    // Mantém a órbita da lua de Nope inalterada (distância de 6 unidades)
     nopeMoonMesh.position.set(6, 0, 0);
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10; // dias de simulação
