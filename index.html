@@ -172,7 +172,7 @@
       { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com os arquivos de textura e displacement para cada planeta (cor branca para não alterar as texturas)
+    // Dicionário com os arquivos de textura e displacement para cada planeta (cor branca para preservar a textura)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -217,9 +217,9 @@
       
       let segments;
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
-        segments = 320; // alta resolução
+        segments = 320;
       } else {
-        segments = 16;  // baixa resolução (sem displacement)
+        segments = 16;
       }
       
       let geometry = new THREE.SphereGeometry(size, segments, segments);
@@ -262,10 +262,9 @@
     });
     
     // Criação da Lua da Terra (160 segmentos)
+    // Em vez de aninhar o grupo à Terra, adicionamos à cena e atualizamos sua posição.
     let earthMoonOrbitGroup = new THREE.Group();
-    // Note: Mantemos o grupo como filho de Earth para posicionar sua órbita,
-    // mas compensaremos a rotação da Terra na atualização.
-    earthMesh.add(earthMoonOrbitGroup);
+    scene.add(earthMoonOrbitGroup);
     let earthMoonSize = earthMesh.geometry.parameters.radius / 4;
     let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
@@ -277,13 +276,15 @@
       displacementScale: earthMoonSize * 0.2
     });
     let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
+    // Posicionamos a lua inicialmente em relação à Terra
     earthMoonMesh.position.set(8, 0, 0);
     earthMoonOrbitGroup.add(earthMoonMesh);
     let earthMoonPeriod = 10;
     
     // Criação da Lua de Nope (160 segmentos)
+    // Adicionamos o grupo de órbita à cena e atualizamos sua posição para seguir Nope.
     let nopeMoonOrbitGroup = new THREE.Group();
-    nopeMesh.add(nopeMoonOrbitGroup);
+    scene.add(nopeMoonOrbitGroup);
     let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4;
     let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
@@ -298,10 +299,6 @@
     nopeMoonMesh.position.set(6, 0, 0);
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10;
-    
-    // Removemos outras luzes: a única fonte será a PointLight do Sol.
-    
-    let lastFrameTime = performance.now();
     
     // Atualiza o alvo dos OrbitControls de forma dinâmica (foco interpolado entre Sol e Nope)
     function updateControlsTarget() {
@@ -330,6 +327,8 @@
       }
     }
     
+    let lastFrameTime = performance.now();
+    
     function animate() {
       requestAnimationFrame(animate);
       let now = performance.now();
@@ -351,16 +350,16 @@
         updatePlanetRotation(planet, simulationTime);
       });
       
-      // Atualiza a rotação orbital das luas compensando a rotação do planeta pai
+      // Atualiza a posição dos grupos de órbita das luas para que sigam os planetas pai
+      earthMoonOrbitGroup.position.copy(earthMesh.position);
+      nopeMoonOrbitGroup.position.copy(nopeMesh.position);
       
-      // Para a Lua da Terra:
+      // Atualiza a rotação orbital das luas (sem compensação, pois o grupo agora está fixado no espaço)
       let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
-      // Compensa a rotação de Terra:
-      earthMoonOrbitGroup.rotation.y = earthMoonAngle - earthMesh.rotation.y;
+      earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
-      // Para a Lua de Nope:
       let nopeMoonAngle = (simulationTime * 2 * Math.PI / nopeMoonPeriod) % (2 * Math.PI);
-      nopeMoonOrbitGroup.rotation.y = nopeMoonAngle - nopeMesh.rotation.y;
+      nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
       let tiltIncrement = deg2rad(15);
       let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
