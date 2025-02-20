@@ -55,14 +55,11 @@
     
     let textureLoader = new THREE.TextureLoader();
     
-    // Fator de escala para as órbitas – dobrado (antes era 50, agora 100)
-    let orbitScale = 100;
-    
     // Configuração dos controles (OrbitControls)
     let controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    // Limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
+    // Definindo limites de zoom: mínimo (próximo à superfície de Nope) e máximo (todo o sistema)
     controls.minDistance = 3;
     controls.maxDistance = 2000;
     
@@ -139,7 +136,9 @@
       let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
       let Z = r * (Math.sin(ω + f) * Math.sin(i));
       
-      return new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale);
+      // Escala: 1 UA = 50 unidades de cena. Para deixar o plano eclíptico horizontal, trocamos Y e Z.
+      let scale = 50;
+      return new THREE.Vector3(X * scale, Z * scale, Y * scale);
     }
     
     // Gera pontos para desenhar a órbita do planeta (curva elíptica)
@@ -157,7 +156,8 @@
         let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
         let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
         let Z = r * (Math.sin(ω + f) * Math.sin(i));
-        points.push(new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale));
+        let scale = 50;
+        points.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
       }
       return points;
     }
@@ -178,15 +178,15 @@
     
     // Dicionário com os nomes dos arquivos de textura e displacement para cada planeta
     const textureMap = {
-      "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0x888888 },
-      "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffc0cb },
-      "Terra":   { texture: "earth-texture.jpg", displacement: "earth-displacement.jpg", fallbackColor: 0x0000ff },
-      "Marte":   { texture: "mars-texture.jpg", displacement: "mars-displacement.jpg", fallbackColor: 0xff0000 },
-      "Nope":    { texture: "nope-texture.jpg", displacement: "nope-displacement.jpg", fallbackColor: 0x800080 },
-      "Júpiter": { texture: "jupiter-texture.jpg", displacement: "jupiter-displacement.jpg", fallbackColor: 0xffa500 },
-      "Saturno": { texture: "saturn-texture.jpg", displacement: "saturn-displacement.jpg", fallbackColor: 0xffff00 },
-      "Urano":   { texture: "uranus-texture.jpg", displacement: "uranus-displacement.jpg", fallbackColor: 0x00ffff },
-      "Netuno":  { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0x0000ff }
+      "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
+      "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
+      "Terra":   { texture: "earth-texture.jpg", displacement: "earth-displacement.jpg", fallbackColor: 0xffffff },
+      "Marte":   { texture: "mars-texture.jpg", displacement: "mars-displacement.jpg", fallbackColor: 0xffffff },
+      "Nope":    { texture: "nope-texture.jpg", displacement: "nope-displacement.jpg", fallbackColor: 0xffffff },
+      "Júpiter": { texture: "jupiter-texture.jpg", displacement: "jupiter-displacement.jpg", fallbackColor: 0xffffff },
+      "Saturno": { texture: "saturn-texture.jpg", displacement: "saturn-displacement.jpg", fallbackColor: 0xffffff },
+      "Urano":   { texture: "uranus-texture.jpg", displacement: "uranus-displacement.jpg", fallbackColor: 0xffffff },
+      "Netuno":  { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0xffffff }
     };
     
     // Criação do Sol
@@ -214,8 +214,7 @@
         default:        size = 3;
       }
       
-      // Para "Terra", "Marte" e "Nope" usamos alta resolução (10× maior que a base de 32 → 320, mas aqui usamos 320)
-      // Os demais planetas terão baixa resolução (16 segmentos)
+      // Para "Terra", "Marte" e "Nope", aumentamos a resolução (10x maior)
       let segments;
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
         segments = 320;
@@ -229,17 +228,16 @@
       let displacement = textureLoader.load(texData.displacement);
       
       let material;
-      // Apenas para Terra, Marte e Nope usamos displacement map com escala reduzida (1/4 do valor anterior)
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
         material = new THREE.MeshStandardMaterial({
-          color: texData.fallbackColor,
+          color: 0xffffff,
           map: texture,
           displacementMap: displacement,
-          displacementScale: size * 0.05
+          displacementScale: size * 0.2
         });
       } else {
         material = new THREE.MeshStandardMaterial({
-          color: texData.fallbackColor,
+          color: 0xffffff,
           map: texture
         });
       }
@@ -264,49 +262,45 @@
       scene.add(orbitLine);
     });
     
-    // Criação da Lua da Terra (resolução aumentada 10×: 1600 segmentos)
+    // Criação da Lua da Terra (aumentada 10x: 160 segmentos)
     let earthMoonOrbitGroup = new THREE.Group();
     earthMoonOrbitGroup.position.set(0, 0, 0);
     earthMesh.add(earthMoonOrbitGroup);
     
-    let earthMoonSize = earthMesh.geometry.parameters.radius / 4; // 1/4 do tamanho da Terra
-    // Aumenta a resolução para 10×: 1600 segmentos
-    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 1600, 1600);
+    let earthMoonSize = earthMesh.geometry.parameters.radius / 4;
+    let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
     let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
     let earthMoonMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: earthMoonTexture,
       displacementMap: earthMoonDisplacement,
-      displacementScale: earthMoonSize * 0.05
+      displacementScale: earthMoonSize * 0.2
     });
     let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-    // Aumenta a distância da lua da Terra para o dobro (antes era 8, agora 16)
-    earthMoonMesh.position.set(16, 0, 0);
+    earthMoonMesh.position.set(8, 0, 0);
     earthMoonOrbitGroup.add(earthMoonMesh);
-    let earthMoonPeriod = 10; // dias de simulação
+    let earthMoonPeriod = 10;
     
-    // Criação da Lua de Nope (resolução aumentada 10×: 1600 segmentos)
+    // Criação da Lua de Nope (aumentada 10x: 160 segmentos)
     let nopeMoonOrbitGroup = new THREE.Group();
     nopeMoonOrbitGroup.position.set(0, 0, 0);
     nopeMesh.add(nopeMoonOrbitGroup);
     
-    // Reduz o tamanho da lua de Nope para metade (antes era raio/4, agora raio/8)
-    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 8;
-    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 1600, 1600);
+    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4;
+    let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
     let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
     let nopeMoonMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: nopeMoonTexture,
       displacementMap: nopeMoonDisplacement,
-      displacementScale: nopeMoonSize * 0.05
+      displacementScale: nopeMoonSize * 0.2
     });
     let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
-    // Mantém a órbita da lua de Nope inalterada (distância de 6 unidades)
     nopeMoonMesh.position.set(6, 0, 0);
     nopeMoonOrbitGroup.add(nopeMoonMesh);
-    let nopeMoonPeriod = 10; // dias de simulação
+    let nopeMoonPeriod = 10;
     
     // Iluminação
     let ambientLight = new THREE.AmbientLight(0x333333);
@@ -317,7 +311,7 @@
     
     let lastFrameTime = performance.now();
     
-    // Inicialmente, centraliza os controles no planeta Nope
+    // Centraliza os controles no planeta Nope
     if (nopeMesh) {
       controls.target.copy(nopeMesh.position);
     }
@@ -325,31 +319,27 @@
     function animate() {
       requestAnimationFrame(animate);
       let now = performance.now();
-      let dt = (now - lastFrameTime) / 1000; // segundos
+      let dt = (now - lastFrameTime) / 1000;
       lastFrameTime = now;
       
       simulationTime += dt * timeSpeed;
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza a posição de cada planeta conforme sua órbita elíptica
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza a rotação dos grupos das luas
       let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
       let nopeMoonAngle = (simulationTime * 2 * Math.PI / nopeMoonPeriod) % (2 * Math.PI);
       nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
-      // Acrescenta uma inclinação de 15° por órbita para a lua de Nope
       let tiltIncrement = deg2rad(15);
       let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
       
-      // Atualiza o alvo dos controles para seguir o planeta Nope
       if (nopeMesh) {
         controls.target.copy(nopeMesh.position);
       }
