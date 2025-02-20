@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação 3D do Sistema Solar com Luz Única do Sol e Textura no Sol</title>
+  <title>Simulação 3D do Sistema Solar com Rotação e Órbitas Corretas das Luas</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
     #ui {
@@ -42,7 +42,7 @@
   
   <script>
   (function(){
-    // Criação da cena, câmera, renderer e carregador de texturas
+    // Configuração da cena, câmera, renderer e carregador de texturas
     let scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
     
@@ -159,7 +159,7 @@
       return points;
     }
     
-    // Dados dos planetas (elementos orbitais e período de rotação em horas)
+    // Dados dos planetas com elementos orbitais e período de rotação (em horas)
     const planetsData = [
       { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005,  Ω: 48.331, ω: 29.124,  M0: 174.796, period: 87.97, rotationPeriod: 1407.6 },
       { name: "Vênus",   a: 0.723, e: 0.0068, i: 3.394,  Ω: 76.680, ω: 54.884,  M0: 50.115,  period: 224.70, rotationPeriod: -5832 },
@@ -172,7 +172,7 @@
       { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com os arquivos de textura e displacement para cada planeta (cores em branco para preservar a textura)
+    // Dicionário com os arquivos de textura e displacement para cada planeta (cor branca para não alterar as texturas)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -188,14 +188,13 @@
     // Criação do Sol com textura
     let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
     let sunTexture = textureLoader.load("sun-texture.jpg");
-    // Usamos MeshBasicMaterial para o sol, que é autoiluminado
     let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
     let sun = new THREE.Mesh(sunGeometry, sunMaterial);
     scene.add(sun);
     
-    // Adiciona uma PointLight ao Sol para que ele ilumine a cena
+    // Adiciona uma PointLight ao Sol (única fonte de luz na cena)
     let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
-    sunLight.position.set(0,0,0);
+    sunLight.position.set(0, 0, 0);
     sun.add(sunLight);
     
     // Criação dos planetas e suas órbitas
@@ -218,9 +217,9 @@
       
       let segments;
       if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
-        segments = 320;
+        segments = 320; // alta resolução
       } else {
-        segments = 16;
+        segments = 16;  // baixa resolução (sem displacement)
       }
       
       let geometry = new THREE.SphereGeometry(size, segments, segments);
@@ -264,9 +263,9 @@
     
     // Criação da Lua da Terra (160 segmentos)
     let earthMoonOrbitGroup = new THREE.Group();
-    earthMoonOrbitGroup.position.set(0, 0, 0);
+    // Note: Mantemos o grupo como filho de Earth para posicionar sua órbita,
+    // mas compensaremos a rotação da Terra na atualização.
     earthMesh.add(earthMoonOrbitGroup);
-    
     let earthMoonSize = earthMesh.geometry.parameters.radius / 4;
     let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
@@ -284,9 +283,7 @@
     
     // Criação da Lua de Nope (160 segmentos)
     let nopeMoonOrbitGroup = new THREE.Group();
-    nopeMoonOrbitGroup.position.set(0, 0, 0);
     nopeMesh.add(nopeMoonOrbitGroup);
-    
     let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4;
     let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
@@ -302,11 +299,11 @@
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10;
     
-    // Removemos qualquer outra fonte de luz e usamos somente a luz do Sol (já adicionada como PointLight)
+    // Removemos outras luzes: a única fonte será a PointLight do Sol.
     
     let lastFrameTime = performance.now();
     
-    // Atualiza o alvo dos controles com base no nível de zoom (foco dinâmico)
+    // Atualiza o alvo dos OrbitControls de forma dinâmica (foco interpolado entre Sol e Nope)
     function updateControlsTarget() {
       let d = camera.position.length();
       let normalizedZoom = 1 - (d - controls.minDistance) / (controls.maxDistance - controls.minDistance);
@@ -324,10 +321,10 @@
       controls.target.lerp(newTarget, 0.1);
     }
     
-    // Atualiza a rotação axial de cada planeta para simular o dia
+    // Atualiza a rotação axial de um planeta (simulando o dia)
     function updatePlanetRotation(planet, time) {
       if (planet.rotationPeriod) {
-        let rotationPeriodDays = planet.rotationPeriod / 24; // converte horas em dias
+        let rotationPeriodDays = planet.rotationPeriod / 24;
         let angle = time * (2 * Math.PI / rotationPeriodDays);
         planet.mesh.rotation.y = angle;
       }
@@ -343,23 +340,27 @@
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza a posição orbital dos planetas
+      // Atualiza posição orbital dos planetas
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza a rotação axial de cada planeta
+      // Atualiza rotação axial (dia) de cada planeta
       planets.forEach(planet => {
         updatePlanetRotation(planet, simulationTime);
       });
       
-      // Atualiza a rotação orbital das luas
-      let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
-      earthMoonOrbitGroup.rotation.y = earthMoonAngle;
+      // Atualiza a rotação orbital das luas compensando a rotação do planeta pai
       
+      // Para a Lua da Terra:
+      let earthMoonAngle = (simulationTime * 2 * Math.PI / earthMoonPeriod) % (2 * Math.PI);
+      // Compensa a rotação de Terra:
+      earthMoonOrbitGroup.rotation.y = earthMoonAngle - earthMesh.rotation.y;
+      
+      // Para a Lua de Nope:
       let nopeMoonAngle = (simulationTime * 2 * Math.PI / nopeMoonPeriod) % (2 * Math.PI);
-      nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
+      nopeMoonOrbitGroup.rotation.y = nopeMoonAngle - nopeMesh.rotation.y;
       let tiltIncrement = deg2rad(15);
       let nopeMoonTilt = (simulationTime / nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
