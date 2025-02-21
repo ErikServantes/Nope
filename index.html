@@ -63,10 +63,7 @@
     
     <script>
       (function(){
-        // Variáveis globais para o lock do zoom (agora simplificado)
-        let currentCenter = "sun"; // "sun" ou "nope"
-
-        // Cena, câmera, renderer e carregador de texturas
+        // --- Configuração básica ---
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
@@ -79,19 +76,19 @@
         
         let textureLoader = new THREE.TextureLoader();
         
-        // OrbitControls
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 3;
         controls.maxDistance = 2000;
+        
         window.addEventListener('resize', () => {
           camera.aspect = window.innerWidth/window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // UI Elements
+        // --- UI ---
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -122,7 +119,7 @@
         let simulationTime = 0; // em dias
         dateInput.addEventListener('change', function(){
           let newDate = new Date(this.value);
-          simulationTime = (newDate - refDate)/86400000;
+          simulationTime = (newDate - refDate) / 86400000;
         });
         
         function formatDate(date) {
@@ -177,15 +174,15 @@
         
         // Dados dos planetas (incluindo axialTilt para Terra e Nope)
         const planetsData = [
-          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005,  Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394,  Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
-          { name:"Terra",   a:1.000, e:0.0167, i:0.000,  Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
-          { name:"Marte",   a:1.524, e:0.0934, i:1.850,  Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
-          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,   Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304,  Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
-          { name:"Saturno", a:9.537, e:0.0565, i:2.485,  Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
-          { name:"Urano",   a:19.191, e:0.0463, i:0.773,  Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2 },
-          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770,  Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1 }
+          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
+          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
+          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
+          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
+          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
+          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
+          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
+          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2 },
+          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1 }
         ];
         
         const textureMap = {
@@ -226,7 +223,7 @@
         // Criação dos planetas
         let planets = [];
         let nopeMesh, earthMesh;
-        // Para "Terra" e "Nope", usamos pivot e tiltGroup para aplicar axial tilt
+        // Para "Terra" e "Nope", usamos pivot e tiltGroup para axial tilt
         planetsData.forEach(planetData => {
           let size;
           switch(planetData.name) {
@@ -242,7 +239,6 @@
             default:        size = 3;
           }
           planetData.size = size;
-          
           let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope")
                          ? 320 : 16;
           let geometry = new THREE.SphereGeometry(size, segments, segments);
@@ -250,7 +246,6 @@
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
           let material;
-          // DisplacementScale: size×0.05
           if(planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
             material = new THREE.MeshStandardMaterial({
               color: 0xffffff,
@@ -271,7 +266,6 @@
             pivot.add(tiltGroup);
             let mesh = new THREE.Mesh(geometry, material);
             tiltGroup.add(mesh);
-            // Aplica axial tilt fixo (valor axialTilt ou 45° por padrão)
             tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
             scene.add(pivot);
             planetData.pivot = pivot;
@@ -338,7 +332,7 @@
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
         
-        // Camada de nuvens para "Nope": 2% maior que o planeta (se Nope tem raio 3, nuvens terão 3*1.02)
+        // Camada de nuvens para "Nope": 2% maior que o planeta
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -353,10 +347,10 @@
         nopeCloudsGroup.add(nopeCloudsMesh);
         scene.add(nopeCloudsGroup);
         
-        // Novo comportamento do zoom:
-        // • Centro padrão: Sol.
-        // • Se a distância ao Sol (camera.position.length(), pois o Sol está na origem) for inferior a 100, muda o alvo para Nope.
-        // • Se o centro atual for "Nope" e a distância da câmera até Nope (camera.position.distanceTo(nopeMesh.position)) for superior a 120, muda o alvo para o Sol.
+        // Comportamento do zoom:
+        // • Centro padrão é o Sol.
+        // • Se a distância ao Sol for inferior a 100, o alvo passa a ser o centro de "Nope".
+        // • Se o centro é "Nope" e a distância da câmera a "Nope" for superior a 120, o alvo volta para o Sol.
         let currentCenter = "sun";
         function updateControlsTarget() {
           let dSun = camera.position.length();
@@ -371,7 +365,7 @@
           }
         }
         
-        // Atualiza a rotação axial de um planeta (dia) – se com pivot, aplica ao tiltGroup
+        // Atualiza a rotação axial de um planeta – se com pivot, aplica no tiltGroup
         function updatePlanetRotation(planet, time) {
           if(planet.rotationPeriod) {
             let rotationPeriodDays = planet.rotationPeriod/24;
@@ -390,7 +384,6 @@
         const maxSpeedFactor = 100 * 365.256/3600;
         
         let lastFrameTime = performance.now();
-        
         function animate() {
           requestAnimationFrame(animate);
           let now = performance.now();
@@ -403,7 +396,7 @@
           let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza posição orbital de cada planeta
+          // Atualiza a posição orbital de cada planeta
           planets.forEach(planet => {
             let pos = getPlanetPosition(planet, simulationTime);
             if(planet.pivot) {
@@ -413,7 +406,7 @@
             }
           });
           
-          // Atualiza rotação axial de cada planeta
+          // Atualiza a rotação axial de cada planeta
           planets.forEach(planet => {
             updatePlanetRotation(planet, simulationTime);
           });
@@ -434,7 +427,7 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza o alvo dos OrbitControls conforme as novas regras de zoom:
+          // Atualiza o alvo dos OrbitControls conforme as novas regras de zoom
           updateControlsTarget();
           
           controls.update();
