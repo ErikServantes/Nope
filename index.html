@@ -10,7 +10,7 @@
       top: 10px;
       left: 10px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 10px;
       border-radius: 5px;
     }
@@ -19,13 +19,13 @@
       top: 10px;
       right: 10px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 8px;
       border-radius: 5px;
       font-size: 14px;
     }
     input, label, button { font-size: 14px; }
-    /* Botões maiores: 60x60px e fonte 24px */
+    /* Botões maiores: 60x60px, fonte 24px */
     #ui button { width: 60px; height: 60px; font-size: 24px; }
   </style>
 </head>
@@ -101,7 +101,6 @@
     let speedSetting = parseInt(speedRange.value);
     speedValue.textContent = speedSetting;
     
-    // Botões para ajuste (mobile)
     speedDown.addEventListener('click', () => {
       speedSetting = Math.max(1, speedSetting - 1);
       speedRange.value = speedSetting;
@@ -117,19 +116,18 @@
       speedValue.textContent = speedSetting;
     });
     
-    // Data de referência
     const refDate = new Date();
     dateInput.value = formatDate(refDate);
     let simulationTime = 0; // em dias
     dateInput.addEventListener('change', function(){
       let newDate = new Date(this.value);
-      simulationTime = (newDate - refDate) / 86400000;
+      simulationTime = (newDate - refDate)/86400000;
     });
     
     function formatDate(date) {
       let yyyy = date.getFullYear();
-      let mm = String(date.getMonth() + 1).padStart(2, '0');
-      let dd = String(date.getDate()).padStart(2, '0');
+      let mm = String(date.getMonth()+1).padStart(2,'0');
+      let dd = String(date.getDate()).padStart(2,'0');
       return `${yyyy}-${mm}-${dd}`;
     }
     
@@ -138,7 +136,7 @@
     function solveKepler(M, e, tolerance = 1e-6) {
       let E = M, delta = 1;
       while(Math.abs(delta) > tolerance) {
-        delta = (E - e*Math.sin(E) - M) / (1 - e*Math.cos(E));
+        delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
         E = E - delta;
       }
       return E;
@@ -149,12 +147,12 @@
           Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
           period = planet.period;
       let n = 2*Math.PI/period;
-      let M = (M0 + n * time) % (2*Math.PI);
+      let M = (M0 + n*time) % (2*Math.PI);
       let E = solveKepler(M, e);
-      let f = 2 * Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+      let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
       let r = a*(1 - e*Math.cos(E));
-      let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-      let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+      let X = r*(Math.cos(Ω)*Math.cos(ω+f) - Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+      let Y = r*(Math.sin(Ω)*Math.cos(ω+f) + Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
       let Z = r*(Math.sin(ω+f)*Math.sin(i));
       let scale = 50;
       return new THREE.Vector3(X*scale, Z*scale, Y*scale);
@@ -179,9 +177,9 @@
     const planetsData = [
       { name:"Mercúrio", a:0.387, e:0.2056, i:7.005,  Ω:48.331, ω:29.124,  M0:174.796, period:87.97, rotationPeriod:1407.6 },
       { name:"Vênus",   a:0.723, e:0.0068, i:3.394,  Ω:76.680, ω:54.884,  M0:50.115,  period:224.70, rotationPeriod:-5832 },
-      { name:"Terra",   a:1.000, e:0.0167, i:0.000,  Ω:0.000,  ω:102.937, M0:357.517, period:365.256, rotationPeriod:24 },
+      { name:"Terra",   a:1.000, e:0.0167, i:0.000,  Ω:0.000,  ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
       { name:"Marte",   a:1.524, e:0.0934, i:1.850,  Ω:49.558, ω:286.502, M0:19.373,  period:686.980, rotationPeriod:24.6 },
-      { name:"Nope",    a:1.59,  e:0.3,   i:90.0,   Ω:0.0,    ω:0.0,     M0:0.0,     period:730, rotationPeriod:26 },
+      { name:"Nope",    a:1.59,  e:0.3,   i:90.0,   Ω:0.0,    ω:0.0,     M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
       { name:"Júpiter", a:5.203, e:0.0489, i:1.304,  Ω:100.464,ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
       { name:"Saturno", a:9.537, e:0.0565, i:2.485,  Ω:113.665,ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
       { name:"Urano",   a:19.191,e:0.0463, i:0.773,  Ω:74.006,  ω:96.998,  M0:142.238, period:30685.4, rotationPeriod:17.2 },
@@ -207,12 +205,29 @@
     let sun = new THREE.Mesh(sunGeometry, sunMaterial);
     scene.add(sun);
     
+    // Adiciona uma PointLight ao Sol
     let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
     sunLight.position.set(0,0,0);
     sun.add(sunLight);
     
+    // Adiciona uma camada de "superfície solar" (para animação de distorção)
+    let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.05, 32, 32);
+    let sunSurfaceTexture = textureLoader.load("sun-surface.png");
+    // Usamos MeshPhongMaterial com emissive para realçar efeitos e permitimos animação via rotação e escala
+    let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
+      map: sunSurfaceTexture,
+      transparent: true,
+      opacity: 0.7,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.5
+    });
+    let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
+    // Posiciona a camada sobre o Sol
+    sun.add(sunSurfaceLayer);
+    
     // Criação dos planetas
     let planets = [];
+    // Para planetas que requerem tilt (Terra e Nope), usamos um sistema de dois grupos: pivot e tiltGroup.
     let nopeMesh, earthMesh;
     planetsData.forEach(planetData => {
       let size;
@@ -229,7 +244,6 @@
         default:        size = 3;
       }
       
-      // Para Terra, Marte e Nope usamos alta resolução e displacement; os demais usam baixa resolução.
       let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope")
                      ? 320 : 16;
       
@@ -238,14 +252,13 @@
       let texture = textureLoader.load(texData.texture);
       let displacement = textureLoader.load(texData.displacement);
       
-      // Reduzimos o efeito do displacement para metade: use size*0.1 em vez de size*0.2.
       let material;
       if (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
         material = new THREE.MeshStandardMaterial({
           color: 0xffffff,
           map: texture,
           displacementMap: displacement,
-          displacementScale: size * 0.1
+          displacementScale: size * 0.1  // metade do valor anterior
         });
       } else {
         material = new THREE.MeshStandardMaterial({
@@ -254,19 +267,34 @@
         });
       }
       
-      let mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-      planetData.mesh = mesh;
-      planets.push(planetData);
+      // Para Terra e Nope, criamos pivot e tiltGroup para aplicar o tilt de forma robusta
+      if (planetData.name==="Terra" || planetData.name==="Nope") {
+        let pivot = new THREE.Group();
+        let tiltGroup = new THREE.Group();
+        pivot.add(tiltGroup);
+        let mesh = new THREE.Mesh(geometry, material);
+        tiltGroup.add(mesh);
+        // Aplica o tilt fixo (45°) no eixo Z
+        tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
+        scene.add(pivot);
+        // Armazena para atualização
+        planetData.pivot = pivot;
+        planetData.tiltGroup = tiltGroup;
+        // Guarde referência ao mesh para outros usos
+        planetData.mesh = mesh;
+        if (planetData.name==="Nope") {
+          nopeMesh = pivot;
+        }
+        if (planetData.name==="Terra") {
+          earthMesh = pivot;
+        }
+      } else {
+        let mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        planetData.mesh = mesh;
+      }
       
-      if (planetData.name==="Nope") {
-        nopeMesh = mesh;
-        // Alinha o eixo de rotação de "Nope" para 90° (no eixo X)
-        mesh.rotation.x = Math.PI/2;
-      }
-      if (planetData.name==="Terra") {
-        earthMesh = mesh;
-      }
+      planets.push(planetData);
       
       let orbitPoints = getOrbitPoints(planetData, 200);
       let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
@@ -275,10 +303,10 @@
       scene.add(orbitLine);
     });
     
-    // Criação da Lua da Terra (grupo de órbita adicionado à cena)
+    // Criação da Lua da Terra – adicionamos o grupo de órbita à cena e atualizamos sua posição para seguir a Terra
     let earthMoonOrbitGroup = new THREE.Group();
     scene.add(earthMoonOrbitGroup);
-    let earthMoonSize = earthMesh.geometry.parameters.radius / 4;
+    let earthMoonSize = earthMesh.children[0].children[0].geometry.parameters.radius / 4; // se estiver em pivot
     let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
     let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
     let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
@@ -286,7 +314,7 @@
       color: 0xffffff,
       map: earthMoonTexture,
       displacementMap: earthMoonDisplacement,
-      displacementScale: earthMoonSize * 0.1,  // metade do valor anterior
+      displacementScale: earthMoonSize * 0.1,
       emissive: 0x444444,
       emissiveIntensity: 1
     });
@@ -295,10 +323,10 @@
     earthMoonOrbitGroup.add(earthMoonMesh);
     let earthMoonPeriod = 10;
     
-    // Criação da Lua de Nope (grupo de órbita adicionado à cena)
+    // Criação da Lua de Nope – semelhante à da Terra
     let nopeMoonOrbitGroup = new THREE.Group();
     scene.add(nopeMoonOrbitGroup);
-    let nopeMoonSize = nopeMesh.geometry.parameters.radius / 4;
+    let nopeMoonSize = nopeMesh.children[0].children[0].geometry.parameters.radius / 4;
     let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
     let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
     let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
@@ -316,9 +344,10 @@
     let nopeMoonPeriod = 10;
     
     // Criação da camada de nuvens para "Nope"
-    // Usamos um novo mesh com geometria ligeiramente maior que "Nope"
-    let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.2, 320, 320); // "Nope" tem tamanho 3; nuvens com 20% a mais
-    let nopeCloudsTexture = textureLoader.load("nope-clouds.png"); // Certifique-se de ter este arquivo
+    // Usamos um multiplicador de 1.1 (10% maior que o raio base de Nope)
+    let nopeBaseSize = 3;  // conforme definido para "Nope"
+    let nopeCloudsGeometry = new THREE.SphereGeometry(nopeBaseSize * 1.1, 320, 320);
+    let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
     let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
       map: nopeCloudsTexture,
       transparent: true,
@@ -327,23 +356,21 @@
       side: THREE.DoubleSide
     });
     let nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
-    // Crie um grupo para as nuvens; este grupo será posicionado independentemente
     let nopeCloudsGroup = new THREE.Group();
     nopeCloudsGroup.add(nopeCloudsMesh);
     scene.add(nopeCloudsGroup);
     
-    // Atualiza o alvo dos OrbitControls e exibe a distância real da câmera
+    // Atualiza o alvo dos OrbitControls e exibe a distância da câmera
     function updateControlsTarget() {
       let d = camera.position.length();
       zoomValue.textContent = d.toFixed(2);
-      
       let normalizedZoom = 1 - (d - controls.minDistance)/(controls.maxDistance - controls.minDistance);
       normalizedZoom = THREE.MathUtils.clamp(normalizedZoom, 0, 1);
-      
       let newTarget = new THREE.Vector3();
-      if (normalizedZoom < 0.60) {
+      if(normalizedZoom < 0.60){
         newTarget.copy(sun.position);
-      } else if (normalizedZoom > 0.95) {
+      } else if(normalizedZoom > 0.95){
+        // Para planetas com pivot, usamos a posição do pivot (que contém o mesh com tilt)
         newTarget.copy(nopeMesh.position);
       } else {
         let t = (normalizedZoom - 0.60)/(0.95 - 0.60);
@@ -352,18 +379,23 @@
       controls.target.lerp(newTarget, 0.1);
     }
     
-    // Atualiza a rotação axial de um planeta (simulando o dia)
+    // Atualiza a rotação axial (dia) para planetas com pivot ou sem
     function updatePlanetRotation(planet, time) {
-      if (planet.rotationPeriod) {
+      if(planet.rotationPeriod){
         let rotationPeriodDays = planet.rotationPeriod/24;
         let angle = time*(2*Math.PI/rotationPeriodDays);
-        planet.mesh.rotation.y = angle;
+        if(planet.pivot && planet.tiltGroup) {
+          // Aplica a rotação diária no tiltGroup (preservando o tilt fixo)
+          planet.tiltGroup.rotation.y = angle;
+        } else {
+          planet.mesh.rotation.y = angle;
+        }
       }
     }
     
     // Mapeamento de velocidade: slider 1 a 10
-    // 1 => 1 órbita da Terra/h = 365.256/3600 ≈ 0.10146 dias/s
-    // 10 => 100 órbitas/h = 100×365.256/3600 ≈ 10.146 dias/s
+    // 1 => 1 órbita da Terra/h: (365.256/3600) ≈ 0.10146 dias/s
+    // 10 => 100 órbitas/h: 100×365.256/3600 ≈ 10.146 dias/s
     const minSpeedFactor = 365.256/3600;
     const maxSpeedFactor = 100 * 365.256/3600;
     
@@ -375,16 +407,20 @@
       let dt = (now - lastFrameTime)/1000;
       lastFrameTime = now;
       
-      let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
+      let speedFactor = minSpeedFactor + ((speedSetting-1)/9) * (maxSpeedFactor - minSpeedFactor);
       simulationTime += dt * speedFactor;
       
       let simDate = new Date(refDate.getTime() + simulationTime*86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza posição orbital dos planetas
+      // Atualiza posição orbital de cada planeta
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
-        planet.mesh.position.copy(pos);
+        if(planet.pivot) {
+          planet.pivot.position.copy(pos);
+        } else {
+          planet.mesh.position.copy(pos);
+        }
       });
       
       // Atualiza rotação axial de cada planeta
@@ -393,10 +429,12 @@
       });
       
       // Atualiza a posição dos grupos de órbita das luas para que sigam seus planetas
+      // Para a Lua da Terra:
       earthMoonOrbitGroup.position.copy(earthMesh.position);
+      // Para a Lua de Nope:
       nopeMoonOrbitGroup.position.copy(nopeMesh.position);
       
-      // Rotação orbital das luas
+      // Rotação orbital das luas (simples, sem compensar a rotação do planeta)
       let earthMoonAngle = (simulationTime * 2*Math.PI/earthMoonPeriod) % (2*Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
       
@@ -406,12 +444,24 @@
       let nopeMoonTilt = (simulationTime/nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
       
-      // Atualiza a posição dos "Nope" clouds para seguir o planeta
+      // Atualiza a camada de nuvens para "Nope"
+      // As nuvens movem-se na mesma direção do planeta (usando a rotação diária de Nope, mas 1/10 da velocidade)
+      let nopePivotRotation;
+      // Se "Nope" foi criado com pivot, use o ângulo aplicado no tiltGroup
+      if(nopeMesh.parent && nopeMesh.parent.rotation) {
+        // Recupera o ângulo de rotação do tiltGroup de "Nope"
+        nopePivotRotation = nopeMesh.parent.children[0].rotation.y;
+      } else {
+        nopePivotRotation = 0;
+      }
       nopeCloudsGroup.position.copy(nopeMesh.position);
-      // Calcula a rotação de "Nope" baseada em seu período (26 h) e aplica 1/10 desse ângulo para as nuvens
-      let nopeRotationDays = 26/24;
-      let nopeRotationAngle = simulationTime * (2*Math.PI/nopeRotationDays);
-      nopeCloudsGroup.rotation.y = nopeRotationAngle / 10;
+      nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
+      
+      // Atualiza a camada de nuvens do Sol (para simular a superfície solar)
+      // Por exemplo, rotaciona lentamente e aplica uma oscilação de escala
+      sunSurfaceLayer.rotation.y += dt * 0.2; // rotação lenta
+      let scaleOsc = 1 + 0.02 * Math.sin(now * 0.002);
+      sunSurfaceLayer.scale.set(scaleOsc, scaleOsc, scaleOsc);
       
       updateControlsTarget();
       controls.update();
