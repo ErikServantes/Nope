@@ -33,6 +33,7 @@
   <div id="ui">
     <div>
       <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
+      <!-- Slider com valores inteiros de 1 a 10 -->
       <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
     </div>
     <div style="margin-top:8px;">
@@ -97,11 +98,11 @@
     const currentDateLabel = document.getElementById('currentDate');
     const zoomValue = document.getElementById('zoomValue');
     
-    // O slider agora é inteiro de 1 a 10
+    // O slider agora varia de 1 a 10 (inteiros)
     let speedSetting = parseInt(speedRange.value);
     speedValue.textContent = speedSetting;
     
-    // Os botões para ajuste (mobile)
+    // Botões para ajuste (mobile)
     speedDown.addEventListener('click', () => {
       speedSetting = Math.max(1, speedSetting - 1);
       speedRange.value = speedSetting;
@@ -150,7 +151,7 @@
       return E;
     }
     
-    // Calcula a posição orbital de um planeta (em unidades de cena) a partir dos elementos orbitais
+    // Calcula a posição orbital de um planeta (em unidades de cena)
     function getPlanetPosition(planet, time) {
       let a = planet.a, e = planet.e, i = deg2rad(planet.i),
           Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
@@ -197,7 +198,7 @@
       { name: "Netuno",  a: 30.07,  e: 0.0086, i: 1.770,  Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1 }
     ];
     
-    // Dicionário com arquivos de textura e displacement (cor branca para preservar as texturas)
+    // Dicionário com arquivos de textura e displacement (cor branca para preservar a textura)
     const textureMap = {
       "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
       "Vênus":   { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
@@ -318,10 +319,9 @@
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10;
     
-    // Atualiza o alvo dos OrbitControls (foco interpolado entre Sol e Nope)
+    // Atualiza o alvo dos OrbitControls e exibe a distância real da câmera
     function updateControlsTarget() {
       let d = camera.position.length();
-      // Aqui, em vez de uma porcentagem, podemos exibir o valor real da distância da câmera
       zoomValue.textContent = d.toFixed(2);
       
       let normalizedZoom = 1 - (d - controls.minDistance) / (controls.maxDistance - controls.minDistance);
@@ -348,6 +348,10 @@
       }
     }
     
+    // Mapeamento de velocidade: 1 a 10 (inteiros) correspondem a 1 a 100 órbitas da Terra por hora.
+    const minSpeedFactor = 365.256 / 3600;            // ~0,10146 dias/segundo (1 órbita/h)
+    const maxSpeedFactor = 100 * 365.256 / 3600;        // ~10,146 dias/segundo (100 órbitas/h)
+    
     let lastFrameTime = performance.now();
     
     function animate() {
@@ -356,26 +360,25 @@
       let dt = (now - lastFrameTime) / 1000;
       lastFrameTime = now;
       
-      // Calcula o speedFactor: número de translações da Terra por hora
-      // Earth orbital period = 365.256 days, 1 hora = 3600 s
-      let speedFactor = (speedSetting * 365.256) / 3600; // dias/segundo
+      // Calcula o speedFactor linearmente entre min e max, de acordo com o slider inteiro
+      let speedFactor = minSpeedFactor + ((speedSetting - 1) / 9) * (maxSpeedFactor - minSpeedFactor);
       simulationTime += dt * speedFactor;
       
       let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
       currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
       
-      // Atualiza posição orbital dos planetas
+      // Atualiza a posição orbital dos planetas
       planets.forEach(planet => {
         let pos = getPlanetPosition(planet, simulationTime);
         planet.mesh.position.copy(pos);
       });
       
-      // Atualiza rotação axial (dia) de cada planeta
+      // Atualiza a rotação axial de cada planeta
       planets.forEach(planet => {
         updatePlanetRotation(planet, simulationTime);
       });
       
-      // Atualiza a posição dos grupos de órbita das luas para que sigam os planetas
+      // Atualiza a posição dos grupos de órbita das luas para que sigam seus planetas
       earthMoonOrbitGroup.position.copy(earthMesh.position);
       nopeMoonOrbitGroup.position.copy(nopeMesh.position);
       
