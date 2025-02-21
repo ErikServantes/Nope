@@ -10,7 +10,7 @@
       top: 10px;
       left: 10px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 10px;
       border-radius: 5px;
     }
@@ -19,7 +19,7 @@
       top: 10px;
       right: 10px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 8px;
       border-radius: 5px;
       font-size: 14px;
@@ -63,7 +63,7 @@
   
   <script>
   (function(){
-    // Cena, câmera, renderer e carregador de texturas
+    // Variáveis globais para o modo lock (não utilizado aqui, pois o lock é simplesmente desativado)
     let scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
     
@@ -89,7 +89,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
     
-    // Elementos da UI
+    // UI Elements
     const speedRange = document.getElementById('speedRange');
     const speedValue = document.getElementById('speedValue');
     const speedDown = document.getElementById('speedDown');
@@ -122,7 +122,7 @@
     
     dateInput.addEventListener('change', function(){
       let newDate = new Date(this.value);
-      simulationTime = (newDate - refDate) / 86400000;
+      simulationTime = (newDate - refDate)/86400000;
     });
     
     function formatDate(date) {
@@ -175,12 +175,12 @@
       return points;
     }
     
-    // Dados dos planetas (orbitais, período de rotação e axialTilt para Terra e Nope)
+    // Dados dos planetas (incluindo axialTilt para Terra e Nope)
     const planetsData = [
       { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
-      { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
+      { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115,  period:224.70, rotationPeriod:-5832 },
       { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
-      { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
+      { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373,  period:686.980, rotationPeriod:24.6 },
       { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
       { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
       { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
@@ -211,7 +211,7 @@
     sunLight.position.set(0, 0, 0);
     sun.add(sunLight);
     
-    // Camada extra para a superfície do Sol
+    // Camada extra para a superfície do Sol – agora com maior rotação e oscilação
     let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.05, 32, 32);
     let sunSurfaceTexture = textureLoader.load("sun-surface.png");
     let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -227,19 +227,19 @@
     // Criação dos planetas
     let planets = [];
     let nopeMesh, earthMesh;
-    // Para "Terra" e "Nope", usamos pivot e tiltGroup para aplicar o axial tilt de forma robusta.
+    // Para "Terra" e "Nope", usamos pivot e tiltGroup para aplicar axial tilt
     planetsData.forEach(planetData => {
       let size;
       switch(planetData.name) {
         case "Mercúrio": size = 2.5; break;
-        case "Vênus":   size = 3;   break;
+        case "Vênus":   size = 3; break;
         case "Terra":   size = 3.5; break;
-        case "Marte":   size = 3;   break;
-        case "Nope":    size = 3;   break;
-        case "Júpiter": size = 7;   break;
-        case "Saturno": size = 6;   break;
-        case "Urano":   size = 5;   break;
-        case "Netuno":  size = 5;   break;
+        case "Marte":   size = 3; break;
+        case "Nope":    size = 3; break;
+        case "Júpiter": size = 7; break;
+        case "Saturno": size = 6; break;
+        case "Urano":   size = 5; break;
+        case "Netuno":  size = 5; break;
         default:        size = 3;
       }
       planetData.size = size;
@@ -251,7 +251,7 @@
       let texture = textureLoader.load(texData.texture);
       let displacement = textureLoader.load(texData.displacement);
       let material;
-      // Reduzimos o efeito do displacement para metade: size×0.05
+      // Reduzido para size×0.05
       if(planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
         material = new THREE.MeshStandardMaterial({
           color: 0xffffff,
@@ -272,6 +272,7 @@
         pivot.add(tiltGroup);
         let mesh = new THREE.Mesh(geometry, material);
         tiltGroup.add(mesh);
+        // Aplica o axial tilt fixo (usando o valor axialTilt ou 45° por padrão)
         tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
         scene.add(pivot);
         planetData.pivot = pivot;
@@ -293,7 +294,7 @@
       
       let orbitPoints = getOrbitPoints(planetData, 200);
       let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-      let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+      let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity:0.3, transparent:true });
       let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
       scene.add(orbitLine);
     });
@@ -338,7 +339,7 @@
     nopeMoonOrbitGroup.add(nopeMoonMesh);
     let nopeMoonPeriod = 10;
     
-    // Camada de nuvens para "Nope"
+    // Camada de nuvens para "Nope" – usando raio 3*1.1 (se Nope tem raio 3, nuvens terão 3.3)
     let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.1, 320, 320);
     let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
     let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -353,24 +354,31 @@
     nopeCloudsGroup.add(nopeCloudsMesh);
     scene.add(nopeCloudsGroup);
     
-    // Atualiza o alvo dos OrbitControls e exibe a distância da câmera
+    // Função para atualizar o alvo dos OrbitControls conforme o zoom:
+    // Se a distância (d) for >=200, o alvo é o Sol;
+    // Se d > 85, interpolamos entre Sol e o centro de "Nope";
+    // Se d <= 85, fixamos o alvo no centro de "Nope".
     function updateControlsTarget() {
       let d = camera.position.length();
       zoomValue.textContent = d.toFixed(2);
       
-      // Modo de lock não implementado nesta versão estável:
-      // Aqui, usamos interpolação simples entre o Sol e o centro de "Nope".
-      let t = (200 - d) / (200 - 60); // t=0 em d=200, t=1 em d=60
-      t = THREE.MathUtils.clamp(t, 0, 1);
-      let newTarget = new THREE.Vector3().copy(sun.position).lerp(nopeMesh.position, t);
+      let newTarget = new THREE.Vector3();
+      if(d >= 200) {
+        newTarget.copy(sun.position);
+      } else if(d > 85) {
+        let t = (200 - d) / (200 - 85); // t=0 em d=200, t=1 em d=85
+        newTarget.copy(sun.position).lerp(nopeMesh.position, t);
+      } else {
+        newTarget.copy(nopeMesh.position);
+      }
       controls.target.lerp(newTarget, 0.1);
     }
     
-    // Atualiza a rotação axial (dia) – para planetas com pivot aplica rotação no tiltGroup
+    // Atualiza a rotação axial de um planeta – se possuir pivot e tiltGroup, aplica no tiltGroup.
     function updatePlanetRotation(planet, time) {
       if(planet.rotationPeriod) {
         let rotationPeriodDays = planet.rotationPeriod/24;
-        let angle = time * (2*Math.PI/rotationPeriodDays);
+        let angle = time*(2*Math.PI/rotationPeriodDays);
         if(planet.pivot && planet.tiltGroup) {
           planet.tiltGroup.rotation.y = angle;
         } else {
@@ -379,8 +387,8 @@
       }
     }
     
-    // Velocidade da simulação: slider de 1 a 10
-    // 1 => ~0.10146 dias/s, 10 => ~10.146 dias/s
+    // Mapeamento de velocidade: slider de 1 a 10 (inteiros)
+    // 1 => 365.256/3600 ≈ 0.10146 dias/s; 10 => 100×365.256/3600 ≈ 10.146 dias/s
     const minSpeedFactor = 365.256/3600;
     const maxSpeedFactor = 100 * 365.256/3600;
     
@@ -392,7 +400,7 @@
       let dt = (now - lastFrameTime)/1000;
       lastFrameTime = now;
       
-      let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
+      let speedFactor = minSpeedFactor + ((speedSetting - 1)/9)*(maxSpeedFactor - minSpeedFactor);
       simulationTime += dt * speedFactor;
       
       let simDate = new Date(refDate.getTime() + simulationTime*86400000);
@@ -420,16 +428,22 @@
       // Rotação orbital das luas
       let earthMoonAngle = (simulationTime * 2*Math.PI/earthMoonPeriod) % (2*Math.PI);
       earthMoonOrbitGroup.rotation.y = earthMoonAngle;
+      
       let nopeMoonAngle = (simulationTime * 2*Math.PI/nopeMoonPeriod) % (2*Math.PI);
       nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
       let tiltIncrement = deg2rad(15);
       let nopeMoonTilt = (simulationTime/nopeMoonPeriod) * tiltIncrement;
       nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
       
-      // Atualiza a camada de nuvens de "Nope"
+      // Atualiza a camada de nuvens para "Nope"
       nopeCloudsGroup.position.copy(nopeMesh.position);
       let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
       nopeCloudsGroup.rotation.y = nopePivotRotation/10;
+      
+      // Atualiza a animação da camada de superfície do Sol (exagerando o efeito)
+      sunSurfaceLayer.rotation.y += dt * 1.0; // rotação mais rápida
+      let scaleOsc = 1 + 0.1 * Math.sin(now * 0.005);
+      sunSurfaceLayer.scale.set(scaleOsc, scaleOsc, scaleOsc);
       
       updateControlsTarget();
       controls.update();
