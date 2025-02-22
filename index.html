@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5</title>
+    <title>Nope v1.6</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -63,20 +63,14 @@
     
     <script>
       (function(){
-        // Variáveis para controle da transição
-        let transitionActive = false;
-        let transitionStartTime = 0;
-        const transitionDuration = 1.5; // tempo de transição aumentado para 1,5 segundos
-        let transition = {
-          startPos: new THREE.Vector3(),
-          endPos: new THREE.Vector3(),
-          startTarget: new THREE.Vector3(),
-          endTarget: new THREE.Vector3()
-        };
-        // Variável que indica o centro atual: "sun" ou "nope"
-        let currentCenter = "sun";
+        // Variáveis para controle da simulação
+        let simulationTime = 0; // em dias
+        let lastFrameTime = performance.now();
         
-        // Cena, câmera, renderer e carregador de texturas
+        // Índice do target atual (0 = Sol, 4 = Nope)
+        let currentTargetIndex = 0;
+        
+        // Configuração da cena, câmera e renderer
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
@@ -89,7 +83,6 @@
         
         let textureLoader = new THREE.TextureLoader();
         
-        // OrbitControls
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -101,7 +94,7 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // UI Elements
+        // Elementos da UI
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -129,10 +122,9 @@
         
         const refDate = new Date();
         dateInput.value = formatDate(refDate);
-        let simulationTime = 0; // em dias
         dateInput.addEventListener('change', function(){
           let newDate = new Date(this.value);
-          simulationTime = (newDate - refDate)/86400000;
+          simulationTime = (newDate - refDate) / 86400000;
         });
         
         function formatDate(date) {
@@ -144,10 +136,11 @@
         
         function deg2rad(deg) { return deg * Math.PI/180; }
         
-        function solveKepler(M, e, tolerance=1e-6) {
+        // Função para resolver a equação de Kepler
+        function solveKepler(M, e, tolerance = 1e-6) {
           let E = M, delta = 1;
-          while(Math.abs(delta) > tolerance) {
-            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
+          while (Math.abs(delta) > tolerance) {
+            delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
             E = E - delta;
           }
           return E;
@@ -157,35 +150,35 @@
           let a = planet.a, e = planet.e, i = deg2rad(planet.i),
               Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
               period = planet.period;
-          let n = 2*Math.PI/period;
-          let M = (M0 + n*time) % (2*Math.PI);
+          let n = 2 * Math.PI / period;
+          let M = (M0 + n * time) % (2 * Math.PI);
           let E = solveKepler(M, e);
-          let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
-          let r = a*(1 - e*Math.cos(E));
-          let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-          let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-          let Z = r*(Math.sin(ω+f)*Math.sin(i));
+          let f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E/2), Math.sqrt(1 - e) * Math.cos(E/2));
+          let r = a * (1 - e * Math.cos(E));
+          let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+          let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+          let Z = r * Math.sin(ω + f) * Math.sin(i);
           let scale = 50;
-          return new THREE.Vector3(X*scale, Z*scale, Y*scale);
+          return new THREE.Vector3(X * scale, Z * scale, Y * scale);
         }
         
-        function getOrbitPoints(planet, numPoints=100) {
+        function getOrbitPoints(planet, numPoints = 100) {
           let points = [];
           let a = planet.a, e = planet.e, i = deg2rad(planet.i),
               Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
-          for(let j=0; j<=numPoints; j++){
-            let f = 2*Math.PI*j/numPoints;
-            let r = a*(1-e*e)/(1+e*Math.cos(f));
-            let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-            let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-            let Z = r*(Math.sin(ω+f)*Math.sin(i));
+          for (let j = 0; j <= numPoints; j++) {
+            let f = 2 * Math.PI * j / numPoints;
+            let r = a * (1 - e * e) / (1 + e * Math.cos(f));
+            let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+            let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+            let Z = r * Math.sin(ω + f) * Math.sin(i);
             let scale = 50;
-            points.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+            points.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
           }
           return points;
         }
         
-        // Dados dos planetas (incluindo axialTilt para Terra e Nope)
+        // Dados dos planetas
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
@@ -220,7 +213,7 @@
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         
-        // Camada extra para a superfície do Sol: 0.5% maior que o Sol e oscilando 0.4%
+        // Camada extra para a superfície do Sol
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -236,7 +229,6 @@
         // Criação dos planetas
         let planets = [];
         let nopeMesh, earthMesh;
-        // Para "Terra" e "Nope" usamos pivot e tiltGroup para axial tilt
         planetsData.forEach(planetData => {
           let size;
           switch(planetData.name) {
@@ -345,7 +337,7 @@
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
         
-        // Camada de nuvens para "Nope": 2% maior que o planeta (se Nope tem raio 3, nuvens terão 3*1.02)
+        // Camada de nuvens para "Nope"
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -360,65 +352,58 @@
         nopeCloudsGroup.add(nopeCloudsMesh);
         scene.add(nopeCloudsGroup);
         
-        // Comportamento do zoom:
-        // • Centro padrão: Sol.
-        // • Se a distância ao Sol for inferior a 100, inicia-se transição para que o novo alvo seja o centro de "Nope" e a câmera se reposicione para 95 unidades de distância de "Nope".
-        // • Se o centro atual é "Nope" e a distância à "Nope" for superior a 120, inicia-se transição para que o novo alvo seja o Sol e a câmera se reposicione para 125 unidades do Sol.
-        function startTransition(newCenter) {
-          transitionActive = true;
-          transitionStartTime = performance.now()/1000;
-          transition.startPos.copy(camera.position);
-          transition.startTarget.copy(controls.target);
-          if(newCenter === "nope") {
-            let dir = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            transition.endPos.copy(nopeMesh.position).add(dir.multiplyScalar(95));
-            transition.endTarget.copy(nopeMesh.position);
-          } else if(newCenter === "sun") {
-            let dir = new THREE.Vector3().subVectors(camera.position, sun.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            transition.endPos.copy(sun.position).add(dir.multiplyScalar(125));
-            transition.endTarget.copy(sun.position);
-          }
-        }
-        
-        function updateTransition() {
-          let t = (performance.now()/1000 - transitionStartTime) / transitionDuration;
-          if(t >= 1) {
-            t = 1;
-            transitionActive = false;
-            currentCenter = (currentCenter === "sun") ? "nope" : "sun";
-          }
-          camera.position.lerpVectors(transition.startPos, transition.endPos, t);
-          controls.target.lerpVectors(transition.startTarget, transition.endTarget, t);
-        }
-        
+        // Atualização do target da câmera conforme o zoom
         function updateControlsTarget() {
-          let dSun = camera.position.distanceTo(sun.position);
-          let dNope = camera.position.distanceTo(nopeMesh.position);
+          // Calcula 5 targets ao longo do vetor entre o Sol (target 0) e Nope (target 4)
+          let sunPos = sun.position;
+          let nopePos = nopeMesh.position;
+          let diff = new THREE.Vector3().subVectors(nopePos, sunPos);
+          let targets = [];
+          for (let i = 0; i < 5; i++) {
+            let t = i / 4; // 0, 0.25, 0.5, 0.75, 1
+            let target = new THREE.Vector3().copy(sunPos).add(diff.clone().multiplyScalar(t));
+            targets.push(target);
+          }
+          
+          // Limiares para cada target
+          const thresholds = [150, 130, 110, 90, 70];
+          
+          // Target atual e distância da câmera a ele
+          let currentTarget = targets[currentTargetIndex];
+          let distance = camera.position.distanceTo(currentTarget);
+          
+          // Se o zoom in ultrapassar o limite do target atual, muda para o próximo target (mais próximo de Nope)
+          if (currentTargetIndex < 4 && distance < thresholds[currentTargetIndex]) {
+            currentTargetIndex++;
+            let newTarget = targets[currentTargetIndex];
+            let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
+            camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
+            controls.target.copy(newTarget);
+          }
+          // Se o zoom out ultrapassar o limite do target anterior, retorna para o target anterior
+          else if (currentTargetIndex > 0 && distance > thresholds[currentTargetIndex - 1]) {
+            currentTargetIndex--;
+            let newTarget = targets[currentTargetIndex];
+            let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
+            camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
+            controls.target.copy(newTarget);
+          }
+          else {
+            // Garante que o target esteja sempre atualizado
+            controls.target.copy(currentTarget);
+          }
+          
+          // Atualiza o diagnóstico
+          let dSun = camera.position.distanceTo(sunPos);
+          let dNope = camera.position.distanceTo(nopePos);
           zoomValue.textContent = "Sun: " + dSun.toFixed(2) + " | Nope: " + dNope.toFixed(2);
-          if(!transitionActive) {
-            if(currentCenter === "sun" && dSun < 100) {
-              startTransition("nope");
-            } else if(currentCenter === "nope" && dNope > 120) {
-              startTransition("sun");
-            } else {
-              controls.target.copy(currentCenter === "sun" ? sun.position : nopeMesh.position);
-            }
-          }
-          if(transitionActive) {
-            updateTransition();
-          }
         }
         
-        // Atualiza a rotação axial de um planeta – se com pivot, aplica ao tiltGroup
         function updatePlanetRotation(planet, time) {
-          if(planet.rotationPeriod) {
-            let rotationPeriodDays = planet.rotationPeriod/24;
-            let angle = time * (2*Math.PI/rotationPeriodDays);
-            if(planet.pivot && planet.tiltGroup) {
+          if (planet.rotationPeriod) {
+            let rotationPeriodDays = planet.rotationPeriod / 24;
+            let angle = time * (2 * Math.PI / rotationPeriodDays);
+            if (planet.pivot && planet.tiltGroup) {
               planet.tiltGroup.rotation.y = angle;
             } else {
               planet.mesh.rotation.y = angle;
@@ -426,57 +411,53 @@
           }
         }
         
-        // Velocidade da simulação: slider de 1 a 10
-        // 1 => 365.256/3600 ≈ 0.10146 dias/s; 10 => 100×365.256/3600 ≈ 10.146 dias/s
-        const minSpeedFactor = 365.256/3600;
-        const maxSpeedFactor = 100 * 365.256/3600;
-        
-        let lastFrameTime = performance.now();
+        // Velocidade da simulação
+        const minSpeedFactor = 365.256 / 3600;
+        const maxSpeedFactor = 100 * 365.256 / 3600;
         
         function animate() {
           requestAnimationFrame(animate);
           let now = performance.now();
-          let dt = (now - lastFrameTime)/1000;
+          let dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
+          let speedFactor = minSpeedFactor + ((speedSetting - 1) / 9) * (maxSpeedFactor - minSpeedFactor);
           simulationTime += dt * speedFactor;
           
-          let simDate = new Date(refDate.getTime() + simulationTime*86400000);
+          let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza a posição orbital de cada planeta
+          // Atualiza a posição orbital dos planetas
           planets.forEach(planet => {
             let pos = getPlanetPosition(planet, simulationTime);
-            if(planet.pivot) {
+            if (planet.pivot) {
               planet.pivot.position.copy(pos);
             } else {
               planet.mesh.position.copy(pos);
             }
           });
           
-          // Atualiza a rotação axial de cada planeta
+          // Atualiza a rotação dos planetas
           planets.forEach(planet => {
             updatePlanetRotation(planet, simulationTime);
           });
           
-          // Atualiza a posição dos grupos de órbita das luas
+          // Atualiza as posições das luas e da camada de nuvens
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
-          let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
+          let earthMoonAngle = (simulationTime * 2 * Math.PI / 10) % (2 * Math.PI);
           earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          let nopeMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
+          let nopeMoonAngle = (simulationTime * 2 * Math.PI / 10) % (2 * Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
           let tiltIncrement = deg2rad(15);
-          let nopeMoonTilt = (simulationTime/10) * tiltIncrement;
+          let nopeMoonTilt = (simulationTime / 10) * tiltIncrement;
           nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
           
-          // Atualiza a camada de nuvens de "Nope"
           nopeCloudsGroup.position.copy(nopeMesh.position);
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
-          nopeCloudsGroup.rotation.y = nopePivotRotation/10;
+          nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
           
-          // Atualiza o alvo dos OrbitControls com a transição animada
+          // Atualiza o target da câmera conforme o zoom (transição instantânea)
           updateControlsTarget();
           
           controls.update();
