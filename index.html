@@ -63,11 +63,11 @@
     
     <script>
       (function(){
-        // Variáveis para controle da simulação
+        // Variáveis de controle da simulação
         let simulationTime = 0; // em dias
         let lastFrameTime = performance.now();
         
-        // Índice do target atual (0 = Sol, 4 = Nope)
+        // Índice do target atual: 0 = Sol, 1 = Intermediário, 2 = Nope
         let currentTargetIndex = 0;
         
         // Configuração da cena, câmera e renderer
@@ -300,7 +300,7 @@
         // Criação da Lua da Terra
         let earthMoonOrbitGroup = new THREE.Group();
         scene.add(earthMoonOrbitGroup);
-        let earthMoonSize = (earthMesh.children[0].children[0].geometry.parameters.radius)/4;
+        let earthMoonSize = (earthMesh.children[0].children[0].geometry.parameters.radius) / 4;
         let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
         let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
         let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
@@ -320,7 +320,7 @@
         // Criação da Lua de Nope
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
-        let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/4;
+        let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius) / 4;
         let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
         let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
         let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
@@ -353,27 +353,25 @@
         scene.add(nopeCloudsGroup);
         
         // Atualização do target da câmera conforme o zoom
+        // Agora, o array "targets" terá 3 pontos: 0 = Sol, 1 = Intermediário, 2 = Nope.
+        // Os thresholds são: [250, 150, 70]
         function updateControlsTarget() {
-          // Calcula 5 targets ao longo do vetor entre o Sol (target 0) e Nope (target 4)
           let sunPos = sun.position;
           let nopePos = nopeMesh.position;
           let diff = new THREE.Vector3().subVectors(nopePos, sunPos);
           let targets = [];
-          for (let i = 0; i < 5; i++) {
-            let t = i / 4; // 0, 0.25, 0.5, 0.75, 1
+          for (let i = 0; i < 3; i++) {
+            let t = i / 2; // 0, 0.5, 1
             let target = new THREE.Vector3().copy(sunPos).add(diff.clone().multiplyScalar(t));
             targets.push(target);
           }
           
-          // Limiares para cada target (novos valores)
-          const thresholds = [250, 200, 150, 100, 50];
-          
-          // Target atual e distância da câmera a ele
+          const thresholds = [250, 150, 70];
           let currentTarget = targets[currentTargetIndex];
           let distance = camera.position.distanceTo(currentTarget);
           
           // Se o zoom in ultrapassar o limite do target atual, muda para o próximo target (mais próximo de Nope)
-          if (currentTargetIndex < 4 && distance < thresholds[currentTargetIndex]) {
+          if (currentTargetIndex < 2 && distance < thresholds[currentTargetIndex]) {
             currentTargetIndex++;
             let newTarget = targets[currentTargetIndex];
             let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
@@ -389,7 +387,6 @@
             controls.target.copy(newTarget);
           }
           else {
-            // Garante que o target esteja sempre atualizado
             controls.target.copy(currentTarget);
           }
           
