@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5</title>
+    <title>Nope v1.5 com Sombras</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -66,7 +66,7 @@
         // Variáveis para controle da transição
         let transitionActive = false;
         let transitionStartTime = 0;
-        const transitionDuration = 0.5; // tempo de transição reduzido para 0,5 segundos
+        const transitionDuration = 0.5; // tempo de transição de 0,5 segundos
         let transition = {
           startPos: new THREE.Vector3(),
           endPos: new THREE.Vector3(),
@@ -84,6 +84,8 @@
         camera.position.set(0, 200, 500);
         
         let renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
         
@@ -216,7 +218,14 @@
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
         scene.add(sun);
+        
+        // Luz do Sol com sombras habilitadas
         let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.1;
+        sunLight.shadow.camera.far = 20000;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         
@@ -278,6 +287,8 @@
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
             let mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             tiltGroup.add(mesh);
             tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
             scene.add(pivot);
@@ -293,6 +304,8 @@
             }
           } else {
             let mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             scene.add(mesh);
             planetData.mesh = mesh;
           }
@@ -321,6 +334,8 @@
           emissiveIntensity: 1
         });
         let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
+        earthMoonMesh.castShadow = true;
+        earthMoonMesh.receiveShadow = true;
         earthMoonMesh.position.set(8, 0, 0);
         earthMoonOrbitGroup.add(earthMoonMesh);
         let earthMoonPeriod = 10;
@@ -341,6 +356,8 @@
           emissiveIntensity: 1
         });
         let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
+        nopeMoonMesh.castShadow = true;
+        nopeMoonMesh.receiveShadow = true;
         nopeMoonMesh.position.set(6, 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
@@ -356,6 +373,8 @@
           side: THREE.DoubleSide
         });
         let nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
+        // Se desejar, também é possível configurar para receber sombras:
+        nopeCloudsMesh.receiveShadow = true;
         let nopeCloudsGroup = new THREE.Group();
         nopeCloudsGroup.add(nopeCloudsMesh);
         scene.add(nopeCloudsGroup);
