@@ -63,11 +63,11 @@
     
     <script>
       (function(){
-        // Variáveis de controle da simulação
+        // Variáveis para controle da simulação
         let simulationTime = 0; // em dias
         let lastFrameTime = performance.now();
         
-        // Índice do target atual: 0 = Sol, 1 = Intermediário, 2 = Nope
+        // Índice do target atual (0 a 4)
         let currentTargetIndex = 0;
         
         // Configuração da cena, câmera e renderer
@@ -210,7 +210,7 @@
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
         scene.add(sun);
         let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
-        sunLight.position.set(0,0,0);
+        sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
         
         // Camada extra para a superfície do Sol
@@ -353,33 +353,40 @@
         scene.add(nopeCloudsGroup);
         
         // Atualização do target da câmera conforme o zoom
-        // Agora, o array "targets" terá 3 pontos: 0 = Sol, 1 = Intermediário, 2 = Nope.
-        // Os thresholds são: [250, 150, 70]
+        // São gerados 5 targets (índices 0 a 4) ao longo do vetor entre o Sol e Nope.
+        // Para zoom in: se a distância for inferior ao threshold definido para o target atual, passa para o próximo.
+        // Para zoom out: se a distância for superior ao threshold definido para o target atual, passa para o anterior.
         function updateControlsTarget() {
           let sunPos = sun.position;
           let nopePos = nopeMesh.position;
           let diff = new THREE.Vector3().subVectors(nopePos, sunPos);
           let targets = [];
-          for (let i = 0; i < 3; i++) {
-            let t = i / 2; // 0, 0.5, 1
+          for (let i = 0; i < 5; i++) {
+            let t = i / 4; // Gera t = 0, 0.25, 0.5, 0.75, 1
             let target = new THREE.Vector3().copy(sunPos).add(diff.clone().multiplyScalar(t));
             targets.push(target);
           }
           
-          const thresholds = [250, 150, 70];
+          // Thresholds para cada target:
+          // Target 0: se a distância for inferior a 250, passa para o target 1.
+          // Target 1: se a distância for inferior a 200, passa para o target 2.
+          // Target 2: se a distância for inferior a 150, passa para o target 3.
+          // Target 3: se a distância for inferior a 100, passa para o target 4.
+          // Target 4: se a distância for superior a 50, passa para o target 3.
+          const thresholds = [250, 200, 150, 100, 50];
           let currentTarget = targets[currentTargetIndex];
           let distance = camera.position.distanceTo(currentTarget);
           
-          // Se o zoom in ultrapassar o limite do target atual, muda para o próximo target (mais próximo de Nope)
-          if (currentTargetIndex < 2 && distance < thresholds[currentTargetIndex]) {
+          // Zoom in: se a distância estiver abaixo do threshold do target atual, avança para o próximo target.
+          if (currentTargetIndex < 4 && distance < thresholds[currentTargetIndex]) {
             currentTargetIndex++;
             let newTarget = targets[currentTargetIndex];
             let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
             camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
             controls.target.copy(newTarget);
           }
-          // Se o zoom out ultrapassar o limite do target anterior, retorna para o target anterior
-          else if (currentTargetIndex > 0 && distance > thresholds[currentTargetIndex - 1]) {
+          // Zoom out: se a distância estiver acima do threshold do target atual, retrocede para o target anterior.
+          else if (currentTargetIndex > 0 && distance > thresholds[currentTargetIndex]) {
             currentTargetIndex--;
             let newTarget = targets[currentTargetIndex];
             let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
@@ -454,7 +461,7 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
           
-          // Atualiza o target da câmera conforme o zoom (transição instantânea)
+          // Atualiza o target da câmera conforme o zoom (verificando as condições definidas)
           updateControlsTarget();
           
           controls.update();
