@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.7</title>
+    <title>Nope v1.8</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -62,50 +62,47 @@
     
     <script>
       (function(){
-        // ===============================
-        // Transição normal entre Sol e Nope
+        // --- Variáveis para a transição normal (entre Sol e Nope) ---
         let transitionActive = false;
         let transitionStartTime = 0;
-        const transitionDuration = 1; // duração de 1 segundo para a transição
+        const transitionDuration = 1; // 1 segundo
         let transition = {
           startPos: new THREE.Vector3(),
           endPos: new THREE.Vector3(),
           startTarget: new THREE.Vector3(),
           endTarget: new THREE.Vector3()
         };
-        // ===============================
-        // Estado atual: target "sun" ou "nope"
-        let currentCenter = "sun";  // inicial: target é o Sol
-        
-        // ===============================
-        // Variável para bloquear transição enquanto há input do utilizador
+        // --- Variáveis para a transição de lock/unlock ---
+        let lockTransitionActive = false;
+        let lockTransitionStartTime = 0;
+        const lockTransitionDuration = 1; // 1 segundo
+        let lockTransition = { startPos: new THREE.Vector3(), endPos: new THREE.Vector3() };
+        let lockModeActive = false;
+        let lockSpherical = new THREE.Spherical();
+        let lockActivationAngle = 0;
+        // --- Estado atual do target: "sun" ou "nope" ---
+        let currentCenter = "sun";
+        // --- Controle de input do usuário: sempre que houver roda, bloqueia transições por 500ms ---
         let userInputLock = false;
         let inputTimeout = null;
         window.addEventListener('wheel', function(){
-          // Quando há um input, bloqueia transições por 500ms
           userInputLock = true;
           if(inputTimeout) clearTimeout(inputTimeout);
           inputTimeout = setTimeout(() => { userInputLock = false; }, 500);
-          // Também, se houver uma transição em andamento, cancelamos
-          transitionActive = false;
+          // Não cancela a simulação; apenas não inicia transições
         });
         
-        // ===============================
-        // Cena, câmera, renderer, carregamento de texturas
+        // --- Cena, câmera, renderer, texturas ---
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-        
         let camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
         camera.position.set(0, 200, 500);
-        
         let renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
-        
         let textureLoader = new THREE.TextureLoader();
         
-        // ===============================
-        // OrbitControls
+        // --- OrbitControls ---
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -117,8 +114,7 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // ===============================
-        // UI
+        // --- UI ---
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -203,7 +199,7 @@
         }
         
         // ------------------------------
-        // Dados dos planetas (axialTilt para Terra e Nope)
+        // Dados dos planetas
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
@@ -239,7 +235,7 @@
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         
-        // Camada extra para a superfície do Sol: 0.5% maior e oscilação de 0.4%
+        // Camada extra para a superfície do Sol: 0.5% maior que o Sol e oscilando 0.4%
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -256,7 +252,7 @@
         // Criação dos planetas
         let planets = [];
         let nopeMesh, earthMesh;
-        // Para "Terra" e "Nope" usamos pivot/tiltGroup para axial tilt
+        // Para "Terra" e "Nope", usamos pivot/tiltGroup para axial tilt
         planetsData.forEach(planetData => {
           let size;
           switch(planetData.name) {
@@ -292,7 +288,6 @@
               map: texture
             });
           }
-          
           if(planetData.name==="Terra" || planetData.name==="Nope") {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
@@ -367,7 +362,7 @@
         let nopeMoonPeriod = 10;
         
         // ------------------------------
-        // Camada de nuvens para "Nope": 2% maior que o planeta (se Nope tem raio 3, usa 3*1.02)
+        // Camada de nuvens para "Nope": 2% maior que o planeta (3*1.02)
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -384,7 +379,7 @@
         
         // ------------------------------
         // Funções de Transição
-        // Transição normal (entre Sol e Nope)
+        // Transição normal entre Sol e Nope
         function startTransition(newCenter) {
           transitionActive = true;
           transitionStartTime = performance.now()/1000;
@@ -441,7 +436,6 @@
             lockTransitionActive = false;
             if(newLockState === "lock") {
               lockModeActive = true;
-              // Armazena o offset em coordenadas esféricas no instante de lock
               let offset = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
               lockSpherical.setFromVector3(offset);
               lockActivationAngle = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
@@ -454,16 +448,17 @@
         }
         
         // ------------------------------
-        // Atualiza o alvo dos OrbitControls e aplica as transições (normal e lock)
+        // Atualiza o target e as transições (normal e lock)
         function updateControlsTarget() {
-          // Se o usuário estiver a fazer um input, não forçamos transição
-          // (o OrbitControls atualiza a posição conforme o input)
-          if(userInputLock) {
-            return;
-          }
           let dSun = camera.position.distanceTo(sun.position);
           let dNope = camera.position.distanceTo(nopeMesh.position);
           zoomValue.textContent = "Sun: " + dSun.toFixed(2) + " | Nope: " + dNope.toFixed(2);
+          
+          // Se houver input do usuário, não iniciamos transições (apenas atualizamos o target conforme o centro atual)
+          if(userInputLock) {
+            controls.target.copy(currentCenter === "sun" ? sun.position : nopeMesh.position);
+            return;
+          }
           
           // Transição normal (Sol ↔ Nope)
           if(!lockTransitionActive && !lockModeActive) {
@@ -481,7 +476,7 @@
             }
           }
           
-          // Verifica o lock para o modo de foco em Nope
+          // Se o centro atual é "nope", verificar lock/unlock
           if(currentCenter === "nope") {
             if(!lockModeActive && !lockTransitionActive && dNope < 7) {
               startLockTransition("lock");
@@ -496,11 +491,11 @@
               }
             }
             if(lockModeActive && !lockTransitionActive) {
-              // Em modo lock, a câmera acompanha o giro de "Nope" mantendo o offset angular registrado
+              // Em modo lock, a câmera acompanha a rotação de Nope mantendo o offset angular calculado
               if(window.nopeTiltGroup) {
                 let angle = window.nopeTiltGroup.rotation.y;
                 let newSpherical = new THREE.Spherical();
-                newSpherical.radius = camera.position.distanceTo(nopeMesh.position); // mantém a distância atual definida pelo utilizador
+                newSpherical.radius = camera.position.distanceTo(nopeMesh.position);
                 newSpherical.phi = lockSpherical.phi;
                 newSpherical.theta = lockSpherical.theta + (angle - lockActivationAngle);
                 let newOffset = new THREE.Vector3();
@@ -513,7 +508,7 @@
         }
         
         // ------------------------------
-        // Atualiza a rotação axial de cada planeta (dia)
+        // Atualiza a rotação axial de um planeta
         function updatePlanetRotation(planet, time) {
           if(planet.rotationPeriod) {
             let rotationPeriodDays = planet.rotationPeriod/24;
@@ -528,7 +523,7 @@
         
         // ------------------------------
         // Velocidade da simulação: slider de 1 a 10
-        // 1 => ~365.256/3600 ≈ 0.10146 dias/s; 10 => ~100×365.256/3600 ≈ 10.146 dias/s
+        // 1 => ~0.10146 dias/s; 10 => ~10.146 dias/s
         const minSpeedFactor = 365.256/3600;
         const maxSpeedFactor = 100 * 365.256/3600;
         
@@ -556,7 +551,7 @@
             }
           });
           
-          // Atualiza a rotação axial de cada planeta
+          // Atualiza rotação axial de cada planeta
           planets.forEach(planet => {
             updatePlanetRotation(planet, simulationTime);
           });
@@ -577,7 +572,7 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza o alvo dos OrbitControls (transições normais e lock)
+          // Atualiza target e transições (normal e lock)
           updateControlsTarget();
           
           controls.update();
