@@ -69,6 +69,8 @@
         
         // Índice do target atual (0 a 4)
         let currentTargetIndex = 0;
+        // Variável para controlar o intervalo entre transições (em milissegundos)
+        let lastTransitionTime = 0;
         
         // Configuração da cena, câmera e renderer
         let scene = new THREE.Scene();
@@ -354,9 +356,11 @@
         
         // Atualização do target da câmera conforme o zoom
         // São gerados 5 targets (índices 0 a 4) ao longo do vetor entre o Sol e Nope.
-        // Para zoom in: se a distância for inferior ao threshold definido para o target atual, passa para o próximo.
-        // Para zoom out: se a distância for superior ao threshold definido para o target atual, passa para o anterior.
+        // Zoom in: se a distância for inferior ao threshold do target atual, avança para o próximo target.
+        // Zoom out: se a distância for superior ao threshold do target atual, retrocede para o target anterior.
+        // Após cada mudança, o target permanece por 0,3 segundos.
         function updateControlsTarget() {
+          let currentTime = performance.now();
           let sunPos = sun.position;
           let nopePos = nopeMesh.position;
           let diff = new THREE.Vector3().subVectors(nopePos, sunPos);
@@ -372,28 +376,37 @@
           // Target 1: se a distância for inferior a 200, passa para o target 2.
           // Target 2: se a distância for inferior a 150, passa para o target 3.
           // Target 3: se a distância for inferior a 100, passa para o target 4.
-          // Target 4: se a distância for superior a 50, passa para o target 3.
+          // Target 4: se a distância for superior a 50, volta para o target 3.
           const thresholds = [250, 200, 150, 100, 50];
           let currentTarget = targets[currentTargetIndex];
           let distance = camera.position.distanceTo(currentTarget);
           
-          // Zoom in: se a distância estiver abaixo do threshold do target atual, avança para o próximo target.
-          if (currentTargetIndex < 4 && distance < thresholds[currentTargetIndex]) {
-            currentTargetIndex++;
-            let newTarget = targets[currentTargetIndex];
-            let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
-            camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
-            controls.target.copy(newTarget);
-          }
-          // Zoom out: se a distância estiver acima do threshold do target atual, retrocede para o target anterior.
-          else if (currentTargetIndex > 0 && distance > thresholds[currentTargetIndex]) {
-            currentTargetIndex--;
-            let newTarget = targets[currentTargetIndex];
-            let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
-            camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
-            controls.target.copy(newTarget);
+          // Só permite mudança se já passaram 0,3 segundos da última transição
+          if (currentTime - lastTransitionTime >= 300) {
+            // Zoom in: avança se a distância for inferior ao threshold do target atual
+            if (currentTargetIndex < 4 && distance < thresholds[currentTargetIndex]) {
+              currentTargetIndex++;
+              lastTransitionTime = currentTime;
+              let newTarget = targets[currentTargetIndex];
+              let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
+              camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
+              controls.target.copy(newTarget);
+            }
+            // Zoom out: retrocede se a distância for superior ao threshold do target atual
+            else if (currentTargetIndex > 0 && distance > thresholds[currentTargetIndex]) {
+              currentTargetIndex--;
+              lastTransitionTime = currentTime;
+              let newTarget = targets[currentTargetIndex];
+              let direction = new THREE.Vector3().subVectors(camera.position, newTarget).normalize();
+              camera.position.copy(newTarget.clone().add(direction.multiplyScalar(thresholds[currentTargetIndex])));
+              controls.target.copy(newTarget);
+            }
+            else {
+              controls.target.copy(currentTarget);
+            }
           }
           else {
+            // Se não passou o tempo mínimo, apenas atualiza o target para o atual
             controls.target.copy(currentTarget);
           }
           
@@ -461,7 +474,7 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
           
-          // Atualiza o target da câmera conforme o zoom (verificando as condições definidas)
+          // Atualiza o target da câmera conforme o zoom
           updateControlsTarget();
           
           controls.update();
