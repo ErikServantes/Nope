@@ -340,12 +340,11 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         let earthMoonPeriod = 10;
         
-        // Criação da Lua de Nope com tamanho reduzido para 1/4 do valor atual
-        // e posicionada a metade da distância anterior (distância da superfície de Nope)
+        // Criação da Lua de Nope:
+        // - Tamanho reduzido para 1/4 do valor anterior (calculado como 1/16 do raio de Nope)
+        // - Posicionada a 4.5 unidades do centro de Nope (considerando que o raio de Nope é 3, isto equivale a metade da distância anterior)
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
-        // Originalmente: (nopeMesh.children[0].children[0].geometry.parameters.radius)/4;
-        // Agora reduzido para 1/4 desse valor:
         let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/16;
         let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
         let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
@@ -361,12 +360,11 @@
         let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
         nopeMoonMesh.castShadow = true;
         nopeMoonMesh.receiveShadow = true;
-        // Originalmente a lua estava a 6 unidades; considerando que a superfície de Nope está a 3 (raio = 3),
-        // a distância atual da superfície é 3 (6-3). Agora queremos metade dessa distância (1.5),
-        // ou seja, posicionar a lua a 3 + 1.5 = 4.5 unidades do centro de Nope.
+        // Posiciona a lua a 4.5 unidades do centro de Nope
         nopeMoonMesh.position.set(4.5, 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
-        let nopeMoonPeriod = 10;
+        // Define o período orbital da lua de Nope para 6h (0,25 dias)
+        let nopeMoonPeriod = 0.25;
         
         // Camada de nuvens para "Nope": 2% maior que o planeta (se Nope tem raio 3, nuvens terão 3*1.02)
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
@@ -489,7 +487,8 @@
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
           earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          let nopeMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
+          // Atualiza a lua de Nope com período orbital de 6h (0,25 dias)
+          let nopeMoonAngle = (simulationTime * 2*Math.PI / nopeMoonPeriod) % (2*Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
           let tiltIncrement = deg2rad(15);
           let nopeMoonTilt = (simulationTime/10) * tiltIncrement;
