@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.8</title>
+    <title>Nope v1.7</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -50,59 +50,72 @@
         (Use mouse ou toque para orbitar, dar zoom e pan)
       </div>
     </div>
-
+    
     <!-- Diagnóstico: Zoom -->
     <div id="diagnostics">
       Zoom: <span id="zoomValue">0</span> units
     </div>
-
+    
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <script>
       (function(){
-        // --- Variáveis para a transição normal (entre Sol e Nope) ---
-        let transitionActive = false;
-        let transitionStartTime = 0;
-        const transitionDuration = 1; // 1 segundo
-        let transition = {
+        // ===============================
+        // Configuração dos estados de zoom
+        // Estado 0: target = Sol
+        // Estado 1: target = target1 (Sol + 0.25*V)
+        // Estado 2: target = target2 (Sol + 0.50*V)
+        // Estado 3: target = target3 (Sol + 0.75*V)
+        // Estado 4: target = Nope
+        let currentZoomState = 0;
+        
+        // Thresholds para transição (para zoom in)
+        const thresholdsIn = [160, 140, 120, 100]; // Se distância ao target atual < threshold, transição para o próximo estado
+        // Para zoom out, os mesmos valores são usados (invertidos)
+        
+        // Duração da transição (em segundos)
+        const zoomTransitionDuration = 1; 
+        
+        // Variáveis para a transição de zoom
+        let zoomTransitionActive = false;
+        let zoomTransitionStartTime = 0;
+        let zoomTransition = {
           startPos: new THREE.Vector3(),
           endPos: new THREE.Vector3(),
           startTarget: new THREE.Vector3(),
-          endTarget: new THREE.Vector3()
+          endTarget: new THREE.Vector3(),
+          newState: 0
         };
-        // --- Variáveis para a transição de lock/unlock ---
-        let lockTransitionActive = false;
-        let lockTransitionStartTime = 0;
-        const lockTransitionDuration = 1; // 1 segundo
-        let lockTransition = { startPos: new THREE.Vector3(), endPos: new THREE.Vector3() };
-        let lockModeActive = false;
-        let lockSpherical = new THREE.Spherical();
-        let lockActivationAngle = 0;
-        // --- Estado atual do target: "sun" ou "nope" ---
-        let currentCenter = "sun";
-        // --- Controle de input do usuário: sempre que houver roda, bloqueia transições por 500ms ---
+        
+        // Flag para bloquear transição enquanto houver input do usuário
         let userInputLock = false;
         let inputTimeout = null;
         window.addEventListener('wheel', function(){
           userInputLock = true;
           if(inputTimeout) clearTimeout(inputTimeout);
           inputTimeout = setTimeout(() => { userInputLock = false; }, 500);
-          // Não cancela a simulação; apenas não inicia transições
+          // Se o usuário está interagindo, cancelamos a transição
+          zoomTransitionActive = false;
         });
         
-        // --- Cena, câmera, renderer, texturas ---
+        // ===============================
+        // Cena, câmera, renderer e carregador de texturas
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
+        
         let camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
         camera.position.set(0, 200, 500);
+        
         let renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+        
         let textureLoader = new THREE.TextureLoader();
         
-        // --- OrbitControls ---
+        // ===============================
+        // OrbitControls
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -114,7 +127,8 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // --- UI ---
+        // ===============================
+        // UI
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -155,6 +169,8 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
+        // ===============================
+        // Funções auxiliares matemáticas
         function deg2rad(deg) { return deg * Math.PI/180; }
         
         function solveKepler(M, e, tolerance=1e-6) {
@@ -198,8 +214,8 @@
           return points;
         }
         
-        // ------------------------------
-        // Dados dos planetas
+        // ===============================
+        // Dados dos planetas (axialTilt para Terra e Nope)
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
@@ -224,7 +240,7 @@
           "Netuno":  { texture:"neptune-texture.jpg", displacement:"neptune-displacement.jpg", fallbackColor:0xffffff }
         };
         
-        // ------------------------------
+        // ===============================
         // Criação do Sol
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
@@ -235,7 +251,7 @@
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         
-        // Camada extra para a superfície do Sol: 0.5% maior que o Sol e oscilando 0.4%
+        // Camada extra para a superfície do Sol: 0.5% maior com oscilação de 0.4%
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -248,11 +264,10 @@
         let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
         sun.add(sunSurfaceLayer);
         
-        // ------------------------------
+        // ===============================
         // Criação dos planetas
         let planets = [];
         let nopeMesh, earthMesh;
-        // Para "Terra" e "Nope", usamos pivot/tiltGroup para axial tilt
         planetsData.forEach(planetData => {
           let size;
           switch(planetData.name) {
@@ -319,7 +334,7 @@
           scene.add(orbitLine);
         });
         
-        // ------------------------------
+        // ===============================
         // Criação da Lua da Terra
         let earthMoonOrbitGroup = new THREE.Group();
         scene.add(earthMoonOrbitGroup);
@@ -340,7 +355,7 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         let earthMoonPeriod = 10;
         
-        // ------------------------------
+        // ===============================
         // Criação da Lua de Nope
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
@@ -361,8 +376,8 @@
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
         
-        // ------------------------------
-        // Camada de nuvens para "Nope": 2% maior que o planeta (3*1.02)
+        // ===============================
+        // Camada de nuvens para "Nope": 2% maior que o planeta
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -377,138 +392,95 @@
         nopeCloudsGroup.add(nopeCloudsMesh);
         scene.add(nopeCloudsGroup);
         
-        // ------------------------------
-        // Funções de Transição
-        // Transição normal entre Sol e Nope
-        function startTransition(newCenter) {
-          transitionActive = true;
-          transitionStartTime = performance.now()/1000;
-          transition.startPos.copy(camera.position);
-          transition.startTarget.copy(controls.target);
-          if(newCenter === "nope") {
-            let dir = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            transition.endPos.copy(nopeMesh.position).add(dir.multiplyScalar(90));
-            transition.endTarget.copy(nopeMesh.position);
-          } else if(newCenter === "sun") {
-            let dir = new THREE.Vector3().subVectors(camera.position, sun.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            transition.endPos.copy(sun.position).add(dir.multiplyScalar(110));
-            transition.endTarget.copy(sun.position);
-          }
+        // ===============================
+        // Função para calcular os 5 targets (target0 = Sol, target1, target2, target3, target4 = Nope)
+        function computeTargets() {
+          let target0 = sun.position.clone();
+          let target4 = nopeMesh.position.clone();
+          let V = target4.clone().sub(target0);
+          let target1 = target0.clone().add(V.clone().multiplyScalar(0.25));
+          let target2 = target0.clone().add(V.clone().multiplyScalar(0.50));
+          let target3 = target0.clone().add(V.clone().multiplyScalar(0.75));
+          return [target0, target1, target2, target3, target4];
         }
         
-        function updateTransition() {
-          let t = (performance.now()/1000 - transitionStartTime) / transitionDuration;
+        // ------------------------------
+        // Função para iniciar a transição de zoom para um novo estado
+        // newState: inteiro de 0 a 4
+        // newTarget: posição do novo target (calculada a partir dos targets)
+        // desiredDistance: a distância desejada entre a câmera e o newTarget
+        function startZoomTransition(newState, newTarget, desiredDistance) {
+          zoomTransitionActive = true;
+          zoomTransitionStartTime = performance.now()/1000;
+          zoomTransition.startPos.copy(camera.position);
+          zoomTransition.startTarget.copy(controls.target);
+          // Calcula a direção atual da câmera em relação ao newTarget
+          let dir = new THREE.Vector3().subVectors(camera.position, newTarget);
+          if(dir.length() === 0) { dir.set(1,0,0); }
+          dir.normalize();
+          zoomTransition.endPos.copy(newTarget).add(dir.multiplyScalar(desiredDistance));
+          zoomTransition.endTarget.copy(newTarget);
+          zoomTransition.newState = newState;
+        }
+        
+        function updateZoomTransition() {
+          let t = (performance.now()/1000 - zoomTransitionStartTime) / zoomTransitionDuration;
           if(t >= 1) {
             t = 1;
-            transitionActive = false;
-            currentCenter = (currentCenter === "sun") ? "nope" : "sun";
+            zoomTransitionActive = false;
+            currentZoomState = zoomTransition.newState;
           }
-          camera.position.lerpVectors(transition.startPos, transition.endPos, t);
-          controls.target.lerpVectors(transition.startTarget, transition.endTarget, t);
+          camera.position.lerpVectors(zoomTransition.startPos, zoomTransition.endPos, t);
+          controls.target.lerpVectors(zoomTransition.startTarget, zoomTransition.endTarget, t);
         }
         
-        // Transição de lock/unlock para o modo lock de Nope
-        function startLockTransition(newLockState) {
-          lockTransitionActive = true;
-          lockTransitionStartTime = performance.now()/1000;
-          lockTransition.startPos.copy(camera.position);
-          if(newLockState === "lock") {
-            let dir = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            lockTransition.endPos.copy(nopeMesh.position).add(dir.multiplyScalar(4));
-          } else if(newLockState === "unlock") {
-            let dir = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
-            if(dir.length() === 0) { dir.set(1,0,0); }
-            dir.normalize();
-            lockTransition.endPos.copy(nopeMesh.position).add(dir.multiplyScalar(12));
-          }
-        }
-        
-        function updateLockTransition(newLockState) {
-          let tLock = (performance.now()/1000 - lockTransitionStartTime) / lockTransitionDuration;
-          if(tLock >= 1) {
-            tLock = 1;
-            lockTransitionActive = false;
-            if(newLockState === "lock") {
-              lockModeActive = true;
-              let offset = new THREE.Vector3().subVectors(camera.position, nopeMesh.position);
-              lockSpherical.setFromVector3(offset);
-              lockActivationAngle = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
-            } else if(newLockState === "unlock") {
-              lockModeActive = false;
-            }
-          }
-          camera.position.lerpVectors(lockTransition.startPos, lockTransition.endPos, tLock);
-          controls.target.copy(nopeMesh.position);
-        }
-        
-        // ------------------------------
-        // Atualiza o target e as transições (normal e lock)
-        function updateControlsTarget() {
-          let dSun = camera.position.distanceTo(sun.position);
-          let dNope = camera.position.distanceTo(nopeMesh.position);
-          zoomValue.textContent = "Sun: " + dSun.toFixed(2) + " | Nope: " + dNope.toFixed(2);
-          
-          // Se houver input do usuário, não iniciamos transições (apenas atualizamos o target conforme o centro atual)
-          if(userInputLock) {
-            controls.target.copy(currentCenter === "sun" ? sun.position : nopeMesh.position);
-            return;
-          }
-          
-          // Transição normal (Sol ↔ Nope)
-          if(!lockTransitionActive && !lockModeActive) {
-            if(!transitionActive) {
-              if(currentCenter === "sun" && dSun < 100) {
-                startTransition("nope");
-              } else if(currentCenter === "nope" && dNope > 100) {
-                startTransition("sun");
-              } else {
-                controls.target.copy(currentCenter === "sun" ? sun.position : nopeMesh.position);
+        // ===============================
+        // Atualiza o target dos OrbitControls com base nas novas condições de zoom
+        function updateZoomTransitions() {
+          if(userInputLock) return; // não faz transição se houver input do usuário
+          // Calcular os 5 targets (dinâmicos, pois o Sol e Nope podem mover-se)
+          let [target0, target1, target2, target3, target4] = computeTargets();
+          // Verificar as condições de zoom in e zoom out de acordo com o estado atual
+          if(!zoomTransitionActive) {
+            if(currentZoomState === 0) {
+              if(camera.position.distanceTo(target0) < 160) {
+                // Passa do Sol para target1 – deseja que a distância à target1 seja 160
+                startZoomTransition(1, target1, 160);
+              }
+            } else if(currentZoomState === 1) {
+              let d1 = camera.position.distanceTo(target1);
+              if(d1 < 140) {
+                startZoomTransition(2, target2, 140);
+              } else if(d1 > 160) {
+                startZoomTransition(0, target0, 160);
+              }
+            } else if(currentZoomState === 2) {
+              let d2 = camera.position.distanceTo(target2);
+              if(d2 < 120) {
+                startZoomTransition(3, target3, 120);
+              } else if(d2 > 140) {
+                startZoomTransition(1, target1, 140);
+              }
+            } else if(currentZoomState === 3) {
+              let d3 = camera.position.distanceTo(target3);
+              if(d3 < 100) {
+                startZoomTransition(4, target4, 100);
+              } else if(d3 > 120) {
+                startZoomTransition(2, target2, 120);
+              }
+            } else if(currentZoomState === 4) {
+              if(camera.position.distanceTo(target4) > 100) {
+                startZoomTransition(3, target3, 100);
               }
             }
-            if(transitionActive) {
-              updateTransition();
-            }
           }
-          
-          // Se o centro atual é "nope", verificar lock/unlock
-          if(currentCenter === "nope") {
-            if(!lockModeActive && !lockTransitionActive && dNope < 7) {
-              startLockTransition("lock");
-            } else if(lockModeActive && !lockTransitionActive && dNope > 10) {
-              startLockTransition("unlock");
-            }
-            if(lockTransitionActive) {
-              if(!lockModeActive && dNope < 7) {
-                updateLockTransition("lock");
-              } else if(lockModeActive && dNope > 10) {
-                updateLockTransition("unlock");
-              }
-            }
-            if(lockModeActive && !lockTransitionActive) {
-              // Em modo lock, a câmera acompanha a rotação de Nope mantendo o offset angular calculado
-              if(window.nopeTiltGroup) {
-                let angle = window.nopeTiltGroup.rotation.y;
-                let newSpherical = new THREE.Spherical();
-                newSpherical.radius = camera.position.distanceTo(nopeMesh.position);
-                newSpherical.phi = lockSpherical.phi;
-                newSpherical.theta = lockSpherical.theta + (angle - lockActivationAngle);
-                let newOffset = new THREE.Vector3();
-                newOffset.setFromSpherical(newSpherical);
-                camera.position.copy(nopeMesh.position).add(newOffset);
-              }
-              controls.target.copy(nopeMesh.position);
-            }
+          if(zoomTransitionActive) {
+            updateZoomTransition();
           }
         }
         
-        // ------------------------------
-        // Atualiza a rotação axial de um planeta
+        // ===============================
+        // Atualiza a rotação axial de cada planeta
         function updatePlanetRotation(planet, time) {
           if(planet.rotationPeriod) {
             let rotationPeriodDays = planet.rotationPeriod/24;
@@ -521,9 +493,8 @@
           }
         }
         
-        // ------------------------------
+        // ===============================
         // Velocidade da simulação: slider de 1 a 10
-        // 1 => ~0.10146 dias/s; 10 => ~10.146 dias/s
         const minSpeedFactor = 365.256/3600;
         const maxSpeedFactor = 100 * 365.256/3600;
         
@@ -541,7 +512,7 @@
           let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza posição orbital de cada planeta
+          // Atualiza a posição orbital de cada planeta
           planets.forEach(planet => {
             let pos = getPlanetPosition(planet, simulationTime);
             if(planet.pivot) {
@@ -551,12 +522,12 @@
             }
           });
           
-          // Atualiza rotação axial de cada planeta
+          // Atualiza a rotação axial de cada planeta
           planets.forEach(planet => {
             updatePlanetRotation(planet, simulationTime);
           });
           
-          // Atualiza posição dos grupos de órbita das luas
+          // Atualiza a posição dos grupos de órbita das luas
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
@@ -572,8 +543,8 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza target e transições (normal e lock)
-          updateControlsTarget();
+          // Atualiza as transições de zoom (se não houver input do usuário)
+          updateZoomTransitions();
           
           controls.update();
           renderer.render(scene, camera);
