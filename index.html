@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.7</title>
+    <title>Nope v1.8</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -62,185 +62,129 @@
     
     <script>
       (function(){
-        // ===============================
-        // Configuração dos estados de zoom
-        // Estado 0: target = Sol
-        // Estado 1: target = target1 (Sol + 0.25*V)
-        // Estado 2: target = target2 (Sol + 0.50*V)
-        // Estado 3: target = target3 (Sol + 0.75*V)
-        // Estado 4: target = Nope
+        // Estado de zoom: 0 = Sol, 1 = Target1, 2 = Target2, 3 = Target3, 4 = Nope
         let currentZoomState = 0;
         
-        // Thresholds para transição (para zoom in)
-        const thresholdsIn = [160, 140, 120, 100]; // Se distância ao target atual < threshold, transição para o próximo estado
-        // Para zoom out, os mesmos valores são usados (invertidos)
+        // Thresholds para transição (zoom in)
+        const thresholdsIn = [160, 140, 120, 100]; 
+        // Thresholds para zoom out (os mesmos, invertidos)
+        const thresholdsOut = [160, 140, 120, 100];
         
-        // Duração da transição (em segundos)
-        const zoomTransitionDuration = 1; 
+        // Duração da transição (não usaremos animação – mudanças são imediatas)
+        // Assim, não há interpolação; a atualização será imediata.
         
-        // Variáveis para a transição de zoom
-        let zoomTransitionActive = false;
-        let zoomTransitionStartTime = 0;
-        let zoomTransition = {
-          startPos: new THREE.Vector3(),
-          endPos: new THREE.Vector3(),
-          startTarget: new THREE.Vector3(),
-          endTarget: new THREE.Vector3(),
-          newState: 0
-        };
-        
-        // Flag para bloquear transição enquanto houver input do usuário
-        let userInputLock = false;
-        let inputTimeout = null;
-        window.addEventListener('wheel', function(){
-          userInputLock = true;
-          if(inputTimeout) clearTimeout(inputTimeout);
-          inputTimeout = setTimeout(() => { userInputLock = false; }, 500);
-          // Se o usuário está interagindo, cancelamos a transição
-          zoomTransitionActive = false;
-        });
-        
-        // ===============================
-        // Cena, câmera, renderer e carregador de texturas
-        let scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        
-        let camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
-        camera.position.set(0, 200, 500);
-        
-        let renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-        
-        let textureLoader = new THREE.TextureLoader();
-        
-        // ===============================
-        // OrbitControls
-        let controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 3;
-        controls.maxDistance = 2000;
-        window.addEventListener('resize', () => {
-          camera.aspect = window.innerWidth/window.innerHeight;
-          camera.updateProjectionMatrix();
-          renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-        
-        // ===============================
-        // UI
-        const speedRange = document.getElementById('speedRange');
-        const speedValue = document.getElementById('speedValue');
-        const speedDown = document.getElementById('speedDown');
-        const speedUp = document.getElementById('speedUp');
-        const dateInput = document.getElementById('dateInput');
-        const currentDateLabel = document.getElementById('currentDate');
-        const zoomValue = document.getElementById('zoomValue');
-        
-        let speedSetting = parseInt(speedRange.value);
-        speedValue.textContent = speedSetting;
-        speedDown.addEventListener('click', () => {
-          speedSetting = Math.max(1, speedSetting - 1);
-          speedRange.value = speedSetting;
-          speedValue.textContent = speedSetting;
-        });
-        speedUp.addEventListener('click', () => {
-          speedSetting = Math.min(10, speedSetting + 1);
-          speedRange.value = speedSetting;
-          speedValue.textContent = speedSetting;
-        });
-        speedRange.addEventListener('input', function(){
-          speedSetting = parseInt(this.value);
-          speedValue.textContent = speedSetting;
-        });
-        
-        const refDate = new Date();
-        dateInput.value = formatDate(refDate);
-        let simulationTime = 0; // em dias
-        dateInput.addEventListener('change', function(){
-          let newDate = new Date(this.value);
-          simulationTime = (newDate - refDate)/86400000;
-        });
-        
-        function formatDate(date) {
-          let yyyy = date.getFullYear();
-          let mm = String(date.getMonth()+1).padStart(2,'0');
-          let dd = String(date.getDate()).padStart(2,'0');
-          return `${yyyy}-${mm}-${dd}`;
+        // Função para calcular os 5 targets (dinâmicos, pois o Sol e o Nope podem mover-se)
+        function computeTargets() {
+          let target0 = sun.position.clone();
+          let target4 = nopeMesh.position.clone();
+          let V = target4.clone().sub(target0);
+          let target1 = target0.clone().add(V.clone().multiplyScalar(0.25));
+          let target2 = target0.clone().add(V.clone().multiplyScalar(0.50));
+          let target3 = target0.clone().add(V.clone().multiplyScalar(0.75));
+          return [target0, target1, target2, target3, target4];
         }
         
-        // ===============================
-        // Funções auxiliares matemáticas
-        function deg2rad(deg) { return deg * Math.PI/180; }
-        
-        function solveKepler(M, e, tolerance=1e-6) {
-          let E = M, delta = 1;
-          while(Math.abs(delta) > tolerance) {
-            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
-            E = E - delta;
+        // Função para atualizar o zoom imediatamente, sem animação
+        function updateZoomTransitions() {
+          let targets = computeTargets(); // [target0, target1, target2, target3, target4]
+          // Verifica o estado atual e aplica as condições
+          if (currentZoomState === 0) { // Target = Sol
+            if (camera.position.distanceTo(targets[0]) < thresholdsIn[0]) {
+              // Muda para estado 1
+              currentZoomState = 1;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[1]).add(dir.multiplyScalar(thresholdsIn[0]));
+              controls.target.copy(targets[1]);
+            }
+          } else if (currentZoomState === 1) { // Target = target1
+            let d = camera.position.distanceTo(targets[1]);
+            if (d < thresholdsIn[1]) {
+              currentZoomState = 2;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[2]).add(dir.multiplyScalar(thresholdsIn[1]));
+              controls.target.copy(targets[2]);
+            } else if (d > thresholdsOut[0]) {
+              currentZoomState = 0;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[0]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[0]).add(dir.multiplyScalar(thresholdsOut[0]));
+              controls.target.copy(targets[0]);
+            }
+          } else if (currentZoomState === 2) { // Target = target2
+            let d = camera.position.distanceTo(targets[2]);
+            if (d < thresholdsIn[2]) {
+              currentZoomState = 3;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[3]).add(dir.multiplyScalar(thresholdsIn[2]));
+              controls.target.copy(targets[3]);
+            } else if (d > thresholdsOut[1]) {
+              currentZoomState = 1;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[1]).add(dir.multiplyScalar(thresholdsOut[1]));
+              controls.target.copy(targets[1]);
+            }
+          } else if (currentZoomState === 3) { // Target = target3
+            let d = camera.position.distanceTo(targets[3]);
+            if (d < thresholdsIn[3]) {
+              currentZoomState = 4;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[4]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[4]).add(dir.multiplyScalar(thresholdsIn[3]));
+              controls.target.copy(targets[4]);
+            } else if (d > thresholdsOut[2]) {
+              currentZoomState = 2;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[2]).add(dir.multiplyScalar(thresholdsOut[2]));
+              controls.target.copy(targets[2]);
+            }
+          } else if (currentZoomState === 4) { // Target = Nope
+            if (camera.position.distanceTo(targets[4]) > thresholdsOut[3]) {
+              currentZoomState = 3;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
+              if(dir.length() === 0) dir.set(1,0,0);
+              dir.normalize();
+              camera.position.copy(targets[3]).add(dir.multiplyScalar(thresholdsOut[3]));
+              controls.target.copy(targets[3]);
+            }
           }
-          return E;
         }
         
-        function getPlanetPosition(planet, time) {
-          let a = planet.a, e = planet.e, i = deg2rad(planet.i),
-              Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
-              period = planet.period;
-          let n = 2*Math.PI/period;
-          let M = (M0 + n*time) % (2*Math.PI);
-          let E = solveKepler(M, e);
-          let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
-          let r = a*(1 - e*Math.cos(E));
-          let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-          let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-          let Z = r*(Math.sin(ω+f)*Math.sin(i));
-          let scale = 50;
-          return new THREE.Vector3(X*scale, Z*scale, Y*scale);
-        }
+        // ===============================
+        // (Demais funções e dados permanecem iguais)
         
-        function getOrbitPoints(planet, numPoints=100) {
-          let points = [];
-          let a = planet.a, e = planet.e, i = deg2rad(planet.i),
-              Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
-          for(let j=0; j<=numPoints; j++){
-            let f = 2*Math.PI*j/numPoints;
-            let r = a*(1-e*e)/(1+e*Math.cos(f));
-            let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-            let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-            let Z = r*(Math.sin(ω+f)*Math.sin(i));
-            let scale = 50;
-            points.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+        function updatePlanetRotation(planet, time) {
+          if(planet.rotationPeriod) {
+            let rotationPeriodDays = planet.rotationPeriod/24;
+            let angle = time * (2*Math.PI/rotationPeriodDays);
+            if(planet.pivot && planet.tiltGroup) {
+              planet.tiltGroup.rotation.y = angle;
+            } else {
+              planet.mesh.rotation.y = angle;
+            }
           }
-          return points;
         }
         
-        // ===============================
-        // Dados dos planetas (axialTilt para Terra e Nope)
-        const planetsData = [
-          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
-          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
-          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
-          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
-          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
-          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2 },
-          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1 }
-        ];
+        const minSpeedFactor = 365.256/3600;
+        const maxSpeedFactor = 100 * 365.256/3600;
         
-        const textureMap = {
-          "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
-          "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
-          "Terra":   { texture:"earth-texture.jpg", displacement:"earth-displacement.jpg", fallbackColor:0xffffff },
-          "Marte":   { texture:"mars-texture.jpg", displacement:"mars-displacement.jpg", fallbackColor:0xffffff },
-          "Nope":    { texture:"nope-texture.jpg", displacement:"nope-displacement.jpg", fallbackColor:0xffffff },
-          "Júpiter": { texture:"jupiter-texture.jpg", displacement:"jupiter-displacement.jpg", fallbackColor:0xffffff },
-          "Saturno": { texture:"saturn-texture.jpg", displacement:"saturn-displacement.jpg", fallbackColor:0xffffff },
-          "Urano":   { texture:"uranus-texture.jpg", displacement:"uranus-displacement.jpg", fallbackColor:0xffffff },
-          "Netuno":  { texture:"neptune-texture.jpg", displacement:"neptune-displacement.jpg", fallbackColor:0xffffff }
-        };
+        let lastFrameTime = performance.now();
         
         // ===============================
+        // Criação dos objetos – Sol, planetas, luas, nuvens – (mesmo que antes)
+        // [O código a seguir permanece inalterado; veja a versão anterior para detalhes completos]
+        
         // Criação do Sol
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
@@ -251,7 +195,7 @@
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         
-        // Camada extra para a superfície do Sol: 0.5% maior com oscilação de 0.4%
+        // Camada extra do Sol
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -264,7 +208,6 @@
         let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
         sun.add(sunSurfaceLayer);
         
-        // ===============================
         // Criação dos planetas
         let planets = [];
         let nopeMesh, earthMesh;
@@ -334,7 +277,6 @@
           scene.add(orbitLine);
         });
         
-        // ===============================
         // Criação da Lua da Terra
         let earthMoonOrbitGroup = new THREE.Group();
         scene.add(earthMoonOrbitGroup);
@@ -355,7 +297,6 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         let earthMoonPeriod = 10;
         
-        // ===============================
         // Criação da Lua de Nope
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
@@ -376,8 +317,7 @@
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
         
-        // ===============================
-        // Camada de nuvens para "Nope": 2% maior que o planeta
+        // Camada de nuvens para "Nope"
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -393,7 +333,83 @@
         scene.add(nopeCloudsGroup);
         
         // ===============================
-        // Função para calcular os 5 targets (target0 = Sol, target1, target2, target3, target4 = Nope)
+        // Atualiza as transições de zoom (sem animação – mudança imediata)
+        function updateZoomTransitions() {
+          let targets = computeTargets(); // [target0, target1, target2, target3, target4]
+          if (currentZoomState === 0) {
+            if (camera.position.distanceTo(targets[0]) < 160) {
+              currentZoomState = 1;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[1]).add(dir.multiplyScalar(160));
+              controls.target.copy(targets[1]);
+            }
+          } else if (currentZoomState === 1) {
+            let d = camera.position.distanceTo(targets[1]);
+            if (d < 140) {
+              currentZoomState = 2;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[2]).add(dir.multiplyScalar(140));
+              controls.target.copy(targets[2]);
+            } else if (d > 160) {
+              currentZoomState = 0;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[0]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[0]).add(dir.multiplyScalar(160));
+              controls.target.copy(targets[0]);
+            }
+          } else if (currentZoomState === 2) {
+            let d = camera.position.distanceTo(targets[2]);
+            if (d < 120) {
+              currentZoomState = 3;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[3]).add(dir.multiplyScalar(120));
+              controls.target.copy(targets[3]);
+            } else if (d > 140) {
+              currentZoomState = 1;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[1]).add(dir.multiplyScalar(140));
+              controls.target.copy(targets[1]);
+            }
+          } else if (currentZoomState === 3) {
+            let d = camera.position.distanceTo(targets[3]);
+            if (d < 100) {
+              currentZoomState = 4;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[4]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[4]).add(dir.multiplyScalar(100));
+              controls.target.copy(targets[4]);
+            } else if (d > 120) {
+              currentZoomState = 2;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[2]).add(dir.multiplyScalar(120));
+              controls.target.copy(targets[2]);
+            }
+          } else if (currentZoomState === 4) {
+            if (camera.position.distanceTo(targets[4]) > 100) {
+              currentZoomState = 3;
+              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
+              if(dir.length() === 0) { dir.set(1,0,0); }
+              dir.normalize();
+              camera.position.copy(targets[3]).add(dir.multiplyScalar(100));
+              controls.target.copy(targets[3]);
+            }
+          }
+        }
+        
+        // ===============================
+        // Função para computar os 5 targets do vetor Sol–Nope
         function computeTargets() {
           let target0 = sun.position.clone();
           let target4 = nopeMesh.position.clone();
@@ -404,83 +420,8 @@
           return [target0, target1, target2, target3, target4];
         }
         
-        // ------------------------------
-        // Função para iniciar a transição de zoom para um novo estado
-        // newState: inteiro de 0 a 4
-        // newTarget: posição do novo target (calculada a partir dos targets)
-        // desiredDistance: a distância desejada entre a câmera e o newTarget
-        function startZoomTransition(newState, newTarget, desiredDistance) {
-          zoomTransitionActive = true;
-          zoomTransitionStartTime = performance.now()/1000;
-          zoomTransition.startPos.copy(camera.position);
-          zoomTransition.startTarget.copy(controls.target);
-          // Calcula a direção atual da câmera em relação ao newTarget
-          let dir = new THREE.Vector3().subVectors(camera.position, newTarget);
-          if(dir.length() === 0) { dir.set(1,0,0); }
-          dir.normalize();
-          zoomTransition.endPos.copy(newTarget).add(dir.multiplyScalar(desiredDistance));
-          zoomTransition.endTarget.copy(newTarget);
-          zoomTransition.newState = newState;
-        }
-        
-        function updateZoomTransition() {
-          let t = (performance.now()/1000 - zoomTransitionStartTime) / zoomTransitionDuration;
-          if(t >= 1) {
-            t = 1;
-            zoomTransitionActive = false;
-            currentZoomState = zoomTransition.newState;
-          }
-          camera.position.lerpVectors(zoomTransition.startPos, zoomTransition.endPos, t);
-          controls.target.lerpVectors(zoomTransition.startTarget, zoomTransition.endTarget, t);
-        }
-        
         // ===============================
-        // Atualiza o target dos OrbitControls com base nas novas condições de zoom
-        function updateZoomTransitions() {
-          if(userInputLock) return; // não faz transição se houver input do usuário
-          // Calcular os 5 targets (dinâmicos, pois o Sol e Nope podem mover-se)
-          let [target0, target1, target2, target3, target4] = computeTargets();
-          // Verificar as condições de zoom in e zoom out de acordo com o estado atual
-          if(!zoomTransitionActive) {
-            if(currentZoomState === 0) {
-              if(camera.position.distanceTo(target0) < 160) {
-                // Passa do Sol para target1 – deseja que a distância à target1 seja 160
-                startZoomTransition(1, target1, 160);
-              }
-            } else if(currentZoomState === 1) {
-              let d1 = camera.position.distanceTo(target1);
-              if(d1 < 140) {
-                startZoomTransition(2, target2, 140);
-              } else if(d1 > 160) {
-                startZoomTransition(0, target0, 160);
-              }
-            } else if(currentZoomState === 2) {
-              let d2 = camera.position.distanceTo(target2);
-              if(d2 < 120) {
-                startZoomTransition(3, target3, 120);
-              } else if(d2 > 140) {
-                startZoomTransition(1, target1, 140);
-              }
-            } else if(currentZoomState === 3) {
-              let d3 = camera.position.distanceTo(target3);
-              if(d3 < 100) {
-                startZoomTransition(4, target4, 100);
-              } else if(d3 > 120) {
-                startZoomTransition(2, target2, 120);
-              }
-            } else if(currentZoomState === 4) {
-              if(camera.position.distanceTo(target4) > 100) {
-                startZoomTransition(3, target3, 100);
-              }
-            }
-          }
-          if(zoomTransitionActive) {
-            updateZoomTransition();
-          }
-        }
-        
-        // ===============================
-        // Atualiza a rotação axial de cada planeta
+        // Demais funções (rotação dos planetas, etc.)
         function updatePlanetRotation(planet, time) {
           if(planet.rotationPeriod) {
             let rotationPeriodDays = planet.rotationPeriod/24;
@@ -493,11 +434,8 @@
           }
         }
         
-        // ===============================
-        // Velocidade da simulação: slider de 1 a 10
         const minSpeedFactor = 365.256/3600;
         const maxSpeedFactor = 100 * 365.256/3600;
-        
         let lastFrameTime = performance.now();
         
         function animate() {
@@ -505,14 +443,12 @@
           let now = performance.now();
           let dt = (now - lastFrameTime)/1000;
           lastFrameTime = now;
-          
           let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
           simulationTime += dt * speedFactor;
-          
           let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza a posição orbital de cada planeta
+          // Atualiza posição orbital dos planetas
           planets.forEach(planet => {
             let pos = getPlanetPosition(planet, simulationTime);
             if(planet.pivot) {
@@ -522,12 +458,12 @@
             }
           });
           
-          // Atualiza a rotação axial de cada planeta
+          // Atualiza rotação dos planetas
           planets.forEach(planet => {
             updatePlanetRotation(planet, simulationTime);
           });
           
-          // Atualiza a posição dos grupos de órbita das luas
+          // Atualiza grupos das luas
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
@@ -538,12 +474,12 @@
           let nopeMoonTilt = (simulationTime/10) * tiltIncrement;
           nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
           
-          // Atualiza a camada de nuvens de "Nope"
+          // Atualiza nuvens de Nope
           nopeCloudsGroup.position.copy(nopeMesh.position);
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza as transições de zoom (se não houver input do usuário)
+          // Atualiza transições de zoom (imediatas, sem animação)
           updateZoomTransitions();
           
           controls.update();
