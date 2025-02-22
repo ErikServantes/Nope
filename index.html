@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5 com Sombras</title>
+    <title>Nope v1.5 com Sombras e Lua Ajustada</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -340,10 +340,13 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         let earthMoonPeriod = 10;
         
-        // Criação da Lua de Nope
+        // Criação da Lua de Nope com tamanho reduzido para 1/4 do valor atual
+        // e posicionada a metade da distância anterior (distância da superfície de Nope)
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
-        let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/4;
+        // Originalmente: (nopeMesh.children[0].children[0].geometry.parameters.radius)/4;
+        // Agora reduzido para 1/4 desse valor:
+        let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/16;
         let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
         let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
         let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
@@ -358,7 +361,10 @@
         let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
         nopeMoonMesh.castShadow = true;
         nopeMoonMesh.receiveShadow = true;
-        nopeMoonMesh.position.set(6, 0, 0);
+        // Originalmente a lua estava a 6 unidades; considerando que a superfície de Nope está a 3 (raio = 3),
+        // a distância atual da superfície é 3 (6-3). Agora queremos metade dessa distância (1.5),
+        // ou seja, posicionar a lua a 3 + 1.5 = 4.5 unidades do centro de Nope.
+        nopeMoonMesh.position.set(4.5, 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         let nopeMoonPeriod = 10;
         
@@ -373,7 +379,6 @@
           side: THREE.DoubleSide
         });
         let nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
-        // Se desejar, também é possível configurar para receber sombras:
         nopeCloudsMesh.receiveShadow = true;
         let nopeCloudsGroup = new THREE.Group();
         nopeCloudsGroup.add(nopeCloudsMesh);
