@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.8</title>
+    <title>Nope v1.7</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -62,362 +62,95 @@
     
     <script>
       (function(){
-        // Estado de zoom: 0 = Sol, 1 = Target1, 2 = Target2, 3 = Target3, 4 = Nope
+        // Estado de zoom: 0 = Sol, 1 = Target1, 2 = Target2, 3 = Target3, 4 = Nope.
         let currentZoomState = 0;
-        
-        // Thresholds para transição (zoom in)
+        // Thresholds para zoom in (se distância ao target atual for menor que):
         const thresholdsIn = [160, 140, 120, 100]; 
-        // Thresholds para zoom out (os mesmos, invertidos)
+        // Thresholds para zoom out (se distância for maior que):
         const thresholdsOut = [160, 140, 120, 100];
         
-        // Duração da transição (não usaremos animação – mudanças são imediatas)
-        // Assim, não há interpolação; a atualização será imediata.
-        
-        // Função para calcular os 5 targets (dinâmicos, pois o Sol e o Nope podem mover-se)
-        function computeTargets() {
+        // Como não haverá transição animada, as mudanças são imediatas.
+        function updateZoomTransitions() {
+          // Recalcula os 5 targets a partir do vetor do Sol ao Nope:
           let target0 = sun.position.clone();
           let target4 = nopeMesh.position.clone();
           let V = target4.clone().sub(target0);
           let target1 = target0.clone().add(V.clone().multiplyScalar(0.25));
           let target2 = target0.clone().add(V.clone().multiplyScalar(0.50));
           let target3 = target0.clone().add(V.clone().multiplyScalar(0.75));
-          return [target0, target1, target2, target3, target4];
-        }
-        
-        // Função para atualizar o zoom imediatamente, sem animação
-        function updateZoomTransitions() {
-          let targets = computeTargets(); // [target0, target1, target2, target3, target4]
-          // Verifica o estado atual e aplica as condições
-          if (currentZoomState === 0) { // Target = Sol
-            if (camera.position.distanceTo(targets[0]) < thresholdsIn[0]) {
-              // Muda para estado 1
+          let targets = [target0, target1, target2, target3, target4];
+          
+          // Zoom In
+          if(currentZoomState === 0) {
+            if(camera.position.distanceTo(target0) < thresholdsIn[0]) {
               currentZoomState = 1;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target1);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[1]).add(dir.multiplyScalar(thresholdsIn[0]));
-              controls.target.copy(targets[1]);
+              camera.position.copy(target1).add(dir.multiplyScalar(thresholdsIn[0]));
+              controls.target.copy(target1);
             }
-          } else if (currentZoomState === 1) { // Target = target1
-            let d = camera.position.distanceTo(targets[1]);
-            if (d < thresholdsIn[1]) {
+          } else if(currentZoomState === 1) {
+            let d = camera.position.distanceTo(target1);
+            if(d < thresholdsIn[1]) {
               currentZoomState = 2;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target2);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[2]).add(dir.multiplyScalar(thresholdsIn[1]));
-              controls.target.copy(targets[2]);
-            } else if (d > thresholdsOut[0]) {
+              camera.position.copy(target2).add(dir.multiplyScalar(thresholdsIn[1]));
+              controls.target.copy(target2);
+            } else if(d > thresholdsOut[0]) {
               currentZoomState = 0;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[0]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target0);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[0]).add(dir.multiplyScalar(thresholdsOut[0]));
-              controls.target.copy(targets[0]);
+              camera.position.copy(target0).add(dir.multiplyScalar(thresholdsOut[0]));
+              controls.target.copy(target0);
             }
-          } else if (currentZoomState === 2) { // Target = target2
-            let d = camera.position.distanceTo(targets[2]);
-            if (d < thresholdsIn[2]) {
+          } else if(currentZoomState === 2) {
+            let d = camera.position.distanceTo(target2);
+            if(d < thresholdsIn[2]) {
               currentZoomState = 3;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target3);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[3]).add(dir.multiplyScalar(thresholdsIn[2]));
-              controls.target.copy(targets[3]);
-            } else if (d > thresholdsOut[1]) {
+              camera.position.copy(target3).add(dir.multiplyScalar(thresholdsIn[2]));
+              controls.target.copy(target3);
+            } else if(d > thresholdsOut[1]) {
               currentZoomState = 1;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target1);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[1]).add(dir.multiplyScalar(thresholdsOut[1]));
-              controls.target.copy(targets[1]);
+              camera.position.copy(target1).add(dir.multiplyScalar(thresholdsOut[1]));
+              controls.target.copy(target1);
             }
-          } else if (currentZoomState === 3) { // Target = target3
-            let d = camera.position.distanceTo(targets[3]);
-            if (d < thresholdsIn[3]) {
+          } else if(currentZoomState === 3) {
+            let d = camera.position.distanceTo(target3);
+            if(d < thresholdsIn[3]) {
               currentZoomState = 4;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[4]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target4);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[4]).add(dir.multiplyScalar(thresholdsIn[3]));
-              controls.target.copy(targets[4]);
-            } else if (d > thresholdsOut[2]) {
+              camera.position.copy(target4).add(dir.multiplyScalar(thresholdsIn[3]));
+              controls.target.copy(target4);
+            } else if(d > thresholdsOut[2]) {
               currentZoomState = 2;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target2);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[2]).add(dir.multiplyScalar(thresholdsOut[2]));
-              controls.target.copy(targets[2]);
+              camera.position.copy(target2).add(dir.multiplyScalar(thresholdsOut[2]));
+              controls.target.copy(target2);
             }
-          } else if (currentZoomState === 4) { // Target = Nope
-            if (camera.position.distanceTo(targets[4]) > thresholdsOut[3]) {
+          } else if(currentZoomState === 4) {
+            if(camera.position.distanceTo(target4) > thresholdsOut[3]) {
               currentZoomState = 3;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
-              if(dir.length() === 0) dir.set(1,0,0);
+              let dir = new THREE.Vector3().subVectors(camera.position, target3);
+              if(dir.length() === 0) { dir.set(1,0,0); }
               dir.normalize();
-              camera.position.copy(targets[3]).add(dir.multiplyScalar(thresholdsOut[3]));
-              controls.target.copy(targets[3]);
+              camera.position.copy(target3).add(dir.multiplyScalar(thresholdsOut[3]));
+              controls.target.copy(target3);
             }
           }
-        }
-        
-        // ===============================
-        // (Demais funções e dados permanecem iguais)
-        
-        function updatePlanetRotation(planet, time) {
-          if(planet.rotationPeriod) {
-            let rotationPeriodDays = planet.rotationPeriod/24;
-            let angle = time * (2*Math.PI/rotationPeriodDays);
-            if(planet.pivot && planet.tiltGroup) {
-              planet.tiltGroup.rotation.y = angle;
-            } else {
-              planet.mesh.rotation.y = angle;
-            }
-          }
-        }
-        
-        const minSpeedFactor = 365.256/3600;
-        const maxSpeedFactor = 100 * 365.256/3600;
-        
-        let lastFrameTime = performance.now();
-        
-        // ===============================
-        // Criação dos objetos – Sol, planetas, luas, nuvens – (mesmo que antes)
-        // [O código a seguir permanece inalterado; veja a versão anterior para detalhes completos]
-        
-        // Criação do Sol
-        let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
-        let sunTexture = textureLoader.load("sun-texture.jpg");
-        let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
-        let sun = new THREE.Mesh(sunGeometry, sunMaterial);
-        scene.add(sun);
-        let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
-        sunLight.position.set(0,0,0);
-        sun.add(sunLight);
-        
-        // Camada extra do Sol
-        let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
-        let sunSurfaceTexture = textureLoader.load("sun-surface.png");
-        let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
-          map: sunSurfaceTexture,
-          transparent: true,
-          opacity: 0.7,
-          emissive: 0xffaa00,
-          emissiveIntensity: 0.5
-        });
-        let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
-        sun.add(sunSurfaceLayer);
-        
-        // Criação dos planetas
-        let planets = [];
-        let nopeMesh, earthMesh;
-        planetsData.forEach(planetData => {
-          let size;
-          switch(planetData.name) {
-            case "Mercúrio": size = 2.5; break;
-            case "Vênus":   size = 3; break;
-            case "Terra":   size = 3.5; break;
-            case "Marte":   size = 3; break;
-            case "Nope":    size = 3; break;
-            case "Júpiter": size = 7; break;
-            case "Saturno": size = 6; break;
-            case "Urano":   size = 5; break;
-            case "Netuno":  size = 5; break;
-            default:        size = 3;
-          }
-          planetData.size = size;
-          let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope")
-                         ? 320 : 16;
-          let geometry = new THREE.SphereGeometry(size, segments, segments);
-          let texData = textureMap[planetData.name];
-          let texture = textureLoader.load(texData.texture);
-          let displacement = textureLoader.load(texData.displacement);
-          let material;
-          if(planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
-            material = new THREE.MeshStandardMaterial({
-              color: 0xffffff,
-              map: texture,
-              displacementMap: displacement,
-              displacementScale: size * 0.05
-            });
-          } else {
-            material = new THREE.MeshStandardMaterial({
-              color: 0xffffff,
-              map: texture
-            });
-          }
-          if(planetData.name==="Terra" || planetData.name==="Nope") {
-            let pivot = new THREE.Group();
-            let tiltGroup = new THREE.Group();
-            pivot.add(tiltGroup);
-            let mesh = new THREE.Mesh(geometry, material);
-            tiltGroup.add(mesh);
-            tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
-            scene.add(pivot);
-            planetData.pivot = pivot;
-            planetData.tiltGroup = tiltGroup;
-            planetData.mesh = mesh;
-            if(planetData.name==="Nope") {
-              nopeMesh = pivot;
-              window.nopeTiltGroup = tiltGroup;
-            }
-            if(planetData.name==="Terra") {
-              earthMesh = pivot;
-            }
-          } else {
-            let mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
-            planetData.mesh = mesh;
-          }
-          planets.push(planetData);
-          let orbitPoints = getOrbitPoints(planetData, 200);
-          let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-          let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
-          let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-          scene.add(orbitLine);
-        });
-        
-        // Criação da Lua da Terra
-        let earthMoonOrbitGroup = new THREE.Group();
-        scene.add(earthMoonOrbitGroup);
-        let earthMoonSize = (earthMesh.children[0].children[0].geometry.parameters.radius)/4;
-        let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
-        let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
-        let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
-        let earthMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: earthMoonTexture,
-          displacementMap: earthMoonDisplacement,
-          displacementScale: earthMoonSize * 0.05,
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-        earthMoonMesh.position.set(8, 0, 0);
-        earthMoonOrbitGroup.add(earthMoonMesh);
-        let earthMoonPeriod = 10;
-        
-        // Criação da Lua de Nope
-        let nopeMoonOrbitGroup = new THREE.Group();
-        scene.add(nopeMoonOrbitGroup);
-        let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/4;
-        let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
-        let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
-        let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
-        let nopeMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: nopeMoonTexture,
-          displacementMap: nopeMoonDisplacement,
-          displacementScale: nopeMoonSize * 0.05,
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
-        nopeMoonMesh.position.set(6, 0, 0);
-        nopeMoonOrbitGroup.add(nopeMoonMesh);
-        let nopeMoonPeriod = 10;
-        
-        // Camada de nuvens para "Nope"
-        let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
-        let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
-        let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
-          map: nopeCloudsTexture,
-          transparent: true,
-          opacity: 0.8,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        });
-        let nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
-        let nopeCloudsGroup = new THREE.Group();
-        nopeCloudsGroup.add(nopeCloudsMesh);
-        scene.add(nopeCloudsGroup);
-        
-        // ===============================
-        // Atualiza as transições de zoom (sem animação – mudança imediata)
-        function updateZoomTransitions() {
-          let targets = computeTargets(); // [target0, target1, target2, target3, target4]
-          if (currentZoomState === 0) {
-            if (camera.position.distanceTo(targets[0]) < 160) {
-              currentZoomState = 1;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[1]).add(dir.multiplyScalar(160));
-              controls.target.copy(targets[1]);
-            }
-          } else if (currentZoomState === 1) {
-            let d = camera.position.distanceTo(targets[1]);
-            if (d < 140) {
-              currentZoomState = 2;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[2]).add(dir.multiplyScalar(140));
-              controls.target.copy(targets[2]);
-            } else if (d > 160) {
-              currentZoomState = 0;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[0]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[0]).add(dir.multiplyScalar(160));
-              controls.target.copy(targets[0]);
-            }
-          } else if (currentZoomState === 2) {
-            let d = camera.position.distanceTo(targets[2]);
-            if (d < 120) {
-              currentZoomState = 3;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[3]).add(dir.multiplyScalar(120));
-              controls.target.copy(targets[3]);
-            } else if (d > 140) {
-              currentZoomState = 1;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[1]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[1]).add(dir.multiplyScalar(140));
-              controls.target.copy(targets[1]);
-            }
-          } else if (currentZoomState === 3) {
-            let d = camera.position.distanceTo(targets[3]);
-            if (d < 100) {
-              currentZoomState = 4;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[4]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[4]).add(dir.multiplyScalar(100));
-              controls.target.copy(targets[4]);
-            } else if (d > 120) {
-              currentZoomState = 2;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[2]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[2]).add(dir.multiplyScalar(120));
-              controls.target.copy(targets[2]);
-            }
-          } else if (currentZoomState === 4) {
-            if (camera.position.distanceTo(targets[4]) > 100) {
-              currentZoomState = 3;
-              let dir = new THREE.Vector3().subVectors(camera.position, targets[3]);
-              if(dir.length() === 0) { dir.set(1,0,0); }
-              dir.normalize();
-              camera.position.copy(targets[3]).add(dir.multiplyScalar(100));
-              controls.target.copy(targets[3]);
-            }
-          }
-        }
-        
-        // ===============================
-        // Função para computar os 5 targets do vetor Sol–Nope
-        function computeTargets() {
-          let target0 = sun.position.clone();
-          let target4 = nopeMesh.position.clone();
-          let V = target4.clone().sub(target0);
-          let target1 = target0.clone().add(V.clone().multiplyScalar(0.25));
-          let target2 = target0.clone().add(V.clone().multiplyScalar(0.50));
-          let target3 = target0.clone().add(V.clone().multiplyScalar(0.75));
-          return [target0, target1, target2, target3, target4];
         }
         
         // ===============================
@@ -463,7 +196,7 @@
             updatePlanetRotation(planet, simulationTime);
           });
           
-          // Atualiza grupos das luas
+          // Atualiza grupos de órbita das luas
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
@@ -479,7 +212,7 @@
           let nopePivotRotation = window.nopeTiltGroup ? window.nopeTiltGroup.rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza transições de zoom (imediatas, sem animação)
+          // Atualiza zoom automaticamente (sem animação)
           updateZoomTransitions();
           
           controls.update();
