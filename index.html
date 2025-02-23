@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5 – Novo Cálculo de Target</title>
+    <title>Nope v1.5 – Novo Cálculo de Target (Limite 50)</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -63,9 +63,7 @@
     
     <script>
       (function(){
-        // =============================
         // Cena, câmera, renderer e controles
-        // =============================
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
@@ -89,9 +87,7 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // =============================
         // UI Elements
-        // =============================
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -141,11 +137,7 @@
           return E;
         }
         
-        // =============================
-        // Criação do Sol e outros corpos (estrutura da versão 1.5)
-        // =============================
-        
-        // Sol
+        // Criação do Sol
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
@@ -328,9 +320,9 @@
         // Novo cálculo do target da câmera
         // =============================
         function updateControlsTarget() {
-          // Linha definida do Sol até Nope
+          // Vetor que vai do Sol a Nope
           let D = new THREE.Vector3().subVectors(nopeMesh.position, sun.position).normalize();
-          // Projeção da posição da câmera no segmento (linha) que vai do Sol a Nope
+          // Projeção da posição da câmera na linha Sol–Nope
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
           let projLength = camOffset.dot(D);
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
@@ -339,15 +331,15 @@
           let L = vector2.length();
           
           // Regra de interpolação:
-          // Se L > 200 → target = Sol; se L < 1 → target = Nope.
-          // Para valores entre 1 e 200, interpolamos linearmente.
+          // Se L > 200 → target = Sol; se L < 50 → target = Nope.
+          // Caso contrário, interpolamos linearmente:
           let t;
           if(L > 200) {
             t = 0;
-          } else if(L < 1) {
+          } else if(L < 50) {
             t = 1;
           } else {
-            t = (200 - L) / 199;
+            t = (200 - L) / (200 - 50); // (200 - L)/150
           }
           
           let target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
@@ -365,7 +357,7 @@
           let dt = (now - lastFrameTime)/1000;
           lastFrameTime = now;
           
-          // Atualiza a simulação (tempo, data, velocidade)
+          // Atualiza simulação de tempo e data
           let minSpeedFactor = 365.256/3600;
           let maxSpeedFactor = 100 * 365.256/3600;
           let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
@@ -408,12 +400,11 @@
             }
           });
           
-          // Atualiza posições das luas e nuvens
+          // Atualiza luas e nuvens
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
           earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          // Para a lua de Nope, mantemos o período orbital anterior (não modificado aqui)
           let nopeMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
           let tiltIncrement = deg2rad(15);
@@ -423,7 +414,7 @@
           let nopePivotRotation = (nopeMesh.children[0] && nopeMesh.children[0].rotation) ? nopeMesh.children[0].rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza o target dos controles baseado nas novas regras
+          // Atualiza o target dos controles baseado nas regras definidas
           updateControlsTarget();
           
           controls.update();
