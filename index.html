@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5 – Novo Cálculo de Target (Limite 50)</title>
+    <title>Nope v1.5 – Lua de Nope 4x e Sombras</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
       #ui {
@@ -63,7 +63,9 @@
     
     <script>
       (function(){
+        // =============================
         // Cena, câmera, renderer e controles
+        // =============================
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
@@ -71,8 +73,15 @@
         camera.position.set(0, 200, 500);
         
         let renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Ativa sombras com suavização
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+        
+        // Luz ambiente para que as áreas em sombra não fiquem totalmente escuras (aprox. 50% de iluminação)
+        let ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
         
         let textureLoader = new THREE.TextureLoader();
         
@@ -87,7 +96,9 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
+        // =============================
         // UI Elements
+        // =============================
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
         const speedDown = document.getElementById('speedDown');
@@ -137,13 +148,23 @@
           return E;
         }
         
+        // =============================
         // Criação do Sol
+        // =============================
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        // Habilita sombras para o Sol (caso receba sombras, se necessário)
+        sun.castShadow = true;
+        sun.receiveShadow = true;
         scene.add(sun);
         let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.1;
+        sunLight.shadow.camera.far = 20000;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
@@ -156,9 +177,13 @@
           emissiveIntensity: 0.5
         });
         let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
+        sunSurfaceLayer.castShadow = true;
+        sunSurfaceLayer.receiveShadow = true;
         sun.add(sunSurfaceLayer);
         
-        // Dados dos planetas
+        // =============================
+        // Dados dos planetas e texturas (como na versão 1.5)
+        // =============================
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
@@ -199,8 +224,7 @@
             default:        size = 3;
           }
           planetData.size = size;
-          let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope")
-                         ? 320 : 16;
+          let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16;
           let geometry = new THREE.SphereGeometry(size, segments, segments);
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
@@ -222,12 +246,8 @@
             planetData.pivot = pivot;
             planetData.tiltGroup = tiltGroup;
             planetData.mesh = mesh;
-            if(planetData.name==="Nope") {
-              nopeMesh = pivot;
-            }
-            if(planetData.name==="Terra") {
-              earthMesh = pivot;
-            }
+            if(planetData.name==="Nope") { nopeMesh = pivot; }
+            if(planetData.name==="Terra") { earthMesh = pivot; }
           } else {
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
@@ -258,7 +278,9 @@
           scene.add(orbitLine);
         });
         
+        // =============================
         // Lua da Terra
+        // =============================
         let earthMoonOrbitGroup = new THREE.Group();
         scene.add(earthMoonOrbitGroup);
         let earthMoonSize = (earthMesh.children[0].children[0].geometry.parameters.radius)/4;
@@ -279,7 +301,10 @@
         earthMoonMesh.position.set(8, 0, 0);
         earthMoonOrbitGroup.add(earthMoonMesh);
         
-        // Lua de Nope: tamanho reduzido para 1/4 do valor anterior e posicionada a 4.5 unidades do centro de Nope
+        // =============================
+        // Lua de Nope – tamanho reduzido e posicionada a 4.5 unidades do centro de Nope
+        // Agora, a velocidade angular é multiplicada por 4 para que a lua dê 4 voltas para cada revolução de Nope.
+        // =============================
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
         let nopeMoonSize = (nopeMesh.children[0].children[0].geometry.parameters.radius)/16;
@@ -300,7 +325,9 @@
         nopeMoonMesh.position.set(4.5, 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         
+        // =============================
         // Camada de nuvens para "Nope"
+        // =============================
         let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
         let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
         let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
@@ -317,12 +344,12 @@
         scene.add(nopeCloudsGroup);
         
         // =============================
-        // Novo cálculo do target da câmera
+        // Novo cálculo do target da câmera (conforme versão anterior, com limite inferior 50)
         // =============================
         function updateControlsTarget() {
           // Vetor que vai do Sol a Nope
           let D = new THREE.Vector3().subVectors(nopeMesh.position, sun.position).normalize();
-          // Projeção da posição da câmera na linha Sol–Nope
+          // Projeção da posição da câmera na reta que une Sol e Nope
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
           let projLength = camOffset.dot(D);
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
@@ -332,14 +359,14 @@
           
           // Regra de interpolação:
           // Se L > 200 → target = Sol; se L < 50 → target = Nope.
-          // Caso contrário, interpolamos linearmente:
+          // Para valores entre, t = (200 - L) / (200 - 50) = (200 - L)/150.
           let t;
           if(L > 200) {
             t = 0;
           } else if(L < 50) {
             t = 1;
           } else {
-            t = (200 - L) / (200 - 50); // (200 - L)/150
+            t = (200 - L) / 150;
           }
           
           let target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
@@ -400,12 +427,13 @@
             }
           });
           
-          // Atualiza luas e nuvens
+          // Atualiza posições das luas e nuvens
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
           earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          let nopeMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
+          // Para a lua de Nope, multiplica a velocidade por 4:
+          let nopeMoonAngle = (simulationTime * 2*Math.PI/10 * 4) % (2*Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
           let tiltIncrement = deg2rad(15);
           let nopeMoonTilt = (simulationTime/10) * tiltIncrement;
