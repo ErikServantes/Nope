@@ -77,10 +77,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
         
-        // Removemos (ou reduzimos) a luz ambiente para preservar sombras
-        // let ambientLight = new THREE.AmbientLight(0xffffff, 0.1); 
-        // scene.add(ambientLight);
-        
+        // Apenas a luz do Sol será usada – removemos qualquer outra fonte
         let textureLoader = new THREE.TextureLoader();
         
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -147,25 +144,27 @@
         }
         
         // =============================
-        // Criação do Sol
+        // Criação do Sol e sua luz
         // =============================
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
-        sun.castShadow = true;
-        sun.receiveShadow = true;
+        sun.castShadow = false; // o Sol não precisa projetar sombra
+        sun.receiveShadow = false;
         scene.add(sun);
+        // Luz do Sol – única fonte de luz na cena
         let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 1024;
         sunLight.shadow.mapSize.height = 1024;
         sunLight.shadow.camera.near = 0.1;
         sunLight.shadow.camera.far = 20000;
-        // Ajuste do bias para evitar "shadow acne"
+        // Ajuste do bias para evitar artefatos de sombra
         sunLight.shadow.bias = -0.005;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
+        // Camada superficial do Sol
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -176,12 +175,12 @@
           emissiveIntensity: 0.5
         });
         let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
-        sunSurfaceLayer.castShadow = true;
-        sunSurfaceLayer.receiveShadow = true;
+        sunSurfaceLayer.castShadow = false;
+        sunSurfaceLayer.receiveShadow = false;
         sun.add(sunSurfaceLayer);
         
         // =============================
-        // Dados dos planetas e texturas (como na versão 1.5)
+        // Dados dos planetas e texturas (versão 1.5 com modificação no displacement)
         // =============================
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
@@ -228,8 +227,9 @@
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
+          // Redução do displacement para metade da altura original
           let material = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ?
-              new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: size * 0.05 }) :
+              new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: size * 0.025 }) :
               new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           
           if(planetData.name==="Terra" || planetData.name==="Nope") {
@@ -290,7 +290,7 @@
           color: 0xffffff,
           map: earthMoonTexture,
           displacementMap: earthMoonDisplacement,
-          displacementScale: earthMoonSize * 0.05,
+          displacementScale: earthMoonSize * 0.025,
           emissive: 0x444444,
           emissiveIntensity: 1
         });
@@ -301,8 +301,7 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         
         // =============================
-        // Lua de Nope – tamanho reduzido para 1/4 do valor anterior, posicionada a 4.5 unidades do centro de Nope,
-        // e com período orbital de 0.25 dias (6h)
+        // Lua de Nope – com período orbital de 0.25 dias (6h)
         // =============================
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
@@ -314,14 +313,13 @@
           color: 0xffffff,
           map: nopeMoonTexture,
           displacementMap: nopeMoonDisplacement,
-          displacementScale: nopeMoonSize * 0.05,
+          displacementScale: nopeMoonSize * 0.025,
           emissive: 0x444444,
           emissiveIntensity: 1
         });
         let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
         nopeMoonMesh.castShadow = true;
         nopeMoonMesh.receiveShadow = true;
-        // Posicionada a 4.5 unidades do centro de Nope
         nopeMoonMesh.position.set(4.5, 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         
@@ -344,7 +342,7 @@
         scene.add(nopeCloudsGroup);
         
         // =============================
-        // Novo cálculo do target da câmera (mesmo que anteriormente, com limite inferior 50)
+        // Novo cálculo do target da câmera (baseado na posição do Sol e de Nope)
         // =============================
         function updateControlsTarget() {
           // Vetor que vai do Sol a Nope
@@ -353,7 +351,7 @@
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
           let projLength = camOffset.dot(D);
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
-          // vector2: distância perpendicular da câmera à linha Sol–Nope
+          // Distância perpendicular da câmera à linha Sol–Nope
           let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
           let L = vector2.length();
           
@@ -364,7 +362,7 @@
           } else if(L < 50) {
             t = 1;
           } else {
-            t = (200 - L) / 150;  // (200 - L)/150
+            t = (200 - L) / 150;
           }
           
           let target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
@@ -430,7 +428,6 @@
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           let earthMoonAngle = (simulationTime * 2*Math.PI/10) % (2*Math.PI);
           earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          // A lua de Nope agora tem período orbital de 0.25 dias (6h)
           let nopeMoonPeriod = 0.25;
           let nopeMoonAngle = (simulationTime * 2*Math.PI / nopeMoonPeriod) % (2*Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
@@ -441,7 +438,7 @@
           let nopePivotRotation = (nopeMesh.children[0] && nopeMesh.children[0].rotation) ? nopeMesh.children[0].rotation.y : 0;
           nopeCloudsGroup.rotation.y = nopePivotRotation/10;
           
-          // Atualiza o target dos controles baseado nas regras definidas
+          // Atualiza o target dos controles
           updateControlsTarget();
           
           controls.update();
