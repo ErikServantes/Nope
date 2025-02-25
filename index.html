@@ -29,7 +29,7 @@
       #configButton:hover {
         background: rgba(70, 70, 70, 0.9);
       }
-      /* Painel de Configuração */
+      /* Painel de Configuração – aparece ao clicar no botão */
       #configPanel {
         position: fixed;
         top: 60px;
@@ -169,13 +169,13 @@
   <body>
     <!-- Botão de Configuração -->
     <div id="configButton">⚙️</div>
-    <!-- Painel de Configuração -->
+    <!-- Painel de Configuração (inicialmente sem planetas) -->
     <div id="configPanel">
       <header>
         <h3>Configuração do Sistema</h3>
         <button id="closeConfig">X</button>
       </header>
-      <!-- Separadores para os Planetas -->
+      <!-- Separadores para os Planetas (serão criados quando o utilizador adicionar planetas) -->
       <div id="planetTabs"></div>
       <!-- Conteúdo de cada Planeta -->
       <div id="planetContents"></div>
@@ -183,7 +183,7 @@
 
     <!-- Menu de Controlo à Esquerda -->
     <div id="ui">
-      <!-- Dropdown para selecionar o planeta em destaque -->
+      <!-- Dropdown para selecionar o planeta em destaque (inicialmente vazio) -->
       <select id="highlightSelect"></select>
       <!-- Campo para inserção manual da data -->
       <input type="date" id="dateInput">
@@ -196,31 +196,30 @@
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    
     <script>
       (function(){
-        // Fatores de escala: convertem valores reais (km) para a escala da simulação.
+        // Fatores de escala para converter valores reais (km) para a escala da simulação
         const distanceScaleFactor = 1 / 149597870;  // 1 UA = 149597870 km
         const sizeScaleFactor = 3.5 / 12756;          // Terra: 12756 km → 3.5 na simulação
 
         // =============================
         // Cena, Câmara, Renderer e Controles
         // =============================
-        let scene = new THREE.Scene();
+        const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
-        let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
         camera.position.set(0, 200, 500);
         
-        let renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
         
-        let textureLoader = new THREE.TextureLoader();
+        const textureLoader = new THREE.TextureLoader();
         
-        let controls = new THREE.OrbitControls(camera, renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 3;
@@ -235,24 +234,24 @@
         // Variáveis de controlo do tempo
         // =============================
         const refDate = new Date();  // Data de referência
-        let simulationTime = 0;      // Offset em dias relativamente à data de referência
-        // Slider com valores de -4 a +4: mapeados para velocidades (em dias/segundo)
+        let simulationTime = 0;      // Offset (em dias) relativamente à data de referência
+        // Slider com valores de -4 a +4 (velocidade em dias/segundo)
         const speedMapping = {
           "-4": -3650,
           "-3": -365,
           "-2": -30,
           "-1": -10,
-          "0": 1,
-          "1": 10,
-          "2": 30,
-          "3": 365,
-          "4": 3650
+           "0": 1,
+           "1": 10,
+           "2": 30,
+           "3": 365,
+           "4": 3650
         };
         const timeSlider = document.getElementById('timeSlider');
         const dateInput = document.getElementById('dateInput');
         function formatForInput(date) {
           let yyyy = date.getFullYear();
-          let mm = String(date.getMonth() + 1).padStart(2, '0');
+          let mm = String(date.getMonth()+1).padStart(2, '0');
           let dd = String(date.getDate()).padStart(2, '0');
           return `${yyyy}-${mm}-${dd}`;
         }
@@ -267,7 +266,7 @@
         // =============================
         function formatDate(date) {
           let dd = String(date.getDate()).padStart(2, '0');
-          let mm = String(date.getMonth() + 1).padStart(2, '0');
+          let mm = String(date.getMonth()+1).padStart(2, '0');
           let yyyy = date.getFullYear();
           return dd + "-" + mm + "-" + yyyy;
         }
@@ -276,7 +275,7 @@
         // Funções Auxiliares
         // =============================
         function deg2rad(deg) { return deg * Math.PI / 180; }
-        function solveKepler(M, e, tolerance = 1e-6) {
+        function solveKepler(M, e, tolerance=1e-6) {
           let E = M, delta = 1;
           while (Math.abs(delta) > tolerance) {
             delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
@@ -286,45 +285,30 @@
         }
         
         // =============================
-        // Criação do Sol e Iluminação
+        // Criação do Sol
         // =============================
-        // Para diagnóstico, usamos MeshBasicMaterial com cores fixas (substitua por MeshStandardMaterial com texturas se os ficheiros estiverem disponíveis)
-        let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
-        let sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        // Usamos MeshBasicMaterial para o Sol, com uma textura se disponível.
+        const sunGeometry = new THREE.SphereGeometry(50, 32, 32);
+        let sunMaterial;
+        try {
+          sunMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load("sun-texture.jpg") });
+        } catch(e) {
+          sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        }
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
         sun.castShadow = false;
         sun.receiveShadow = false;
         scene.add(sun);
         
-        let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 1024;
-        sunLight.shadow.mapSize.height = 1024;
-        sunLight.shadow.camera.near = 0.1;
-        sunLight.shadow.camera.far = 20000;
-        sunLight.shadow.bias = -0.005;
-        sunLight.position.set(0, 0, 0);
-        sun.add(sunLight);
+        // =============================
+        // Variável para armazenar planetas (inicialmente vazia)
+        // =============================
+        let planets = [];
         
         // =============================
-        // Dados Reais dos Planetas (valores em km, kg e dias)
-        // =============================
-        const planetsData = [
-          { name:"Mercúrio", real_a:57909227, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, axialTilt:0, real_diameter:4879, mass:3.301e23 },
-          { name:"Vénus",   real_a:108208000, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, axialTilt:177, real_diameter:12104, mass:4.867e24 },
-          { name:"Terra",   real_a:149597870, e:0.0167, i:0.000, Ω:0.000,  ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:23.5, real_diameter:12756, mass:5.972e24 },
-          { name:"Marte",   real_a:227943824, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6, axialTilt:25, real_diameter:6792, mass:6.417e23 },
-          { name:"Nope",    real_a:1.59 * 149597870, e:0.3,   i:90.0,  Ω:0.0,    ω:0.0,    M0:0.0,     period:730, rotationPeriod:26, axialTilt:45, real_diameter:12756, mass:5.972e24 },
-          { name:"Júpiter", real_a:778340821, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, axialTilt:3, real_diameter:142984, mass:1.898e27 },
-          { name:"Saturno", real_a:1433449370, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7, axialTilt:26.7, real_diameter:120536, mass:5.683e26 },
-          { name:"Urano",   real_a:2870658186, e:0.0463, i:0.773, Ω:74.006,  ω:96.998,  M0:142.238, period:30685.4, rotationPeriod:17.2, axialTilt:97.8, real_diameter:51118, mass:8.681e25 },
-          { name:"Netuno",  real_a:4498396441, e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, axialTilt:28.3, real_diameter:49528, mass:1.024e26 },
-          { name:"Plutão",  real_a:5906376272, e:0.2488, i:17.16, Ω:110.299, ω:113.834, M0:14.53, period:90560, rotationPeriod:153.3, axialTilt:122.5, real_diameter:2370, mass:1.309e22 }
-        ];
-        
-        // =============================
-        // Função de Criação de Planeta – converte os valores reais para a escala da simulação
-        // Utiliza materiais básicos com cores de fallback (para diagnóstico)
+        // Função para criar um planeta (os dados exibidos são reais; os valores simulados usam fatores de escala)
+        // -----------------------------
+        // Ao criar, os planetas ainda não aparecem, mas podem ser adicionados via menu
         // =============================
         function criarPlaneta(planetData) {
           let sim_a = planetData.real_a * distanceScaleFactor;
@@ -332,8 +316,8 @@
           
           let segmentos = (["Terra","Marte","Nope"].includes(planetData.name)) ? 320 : 16;
           let geometry = new THREE.SphereGeometry(sim_size, segmentos, segmentos);
-          // Para diagnóstico, usamos cores simples para cada planeta
-          let fallbackColors = {
+          // Para diagnóstico, usa uma cor fixa (os valores reais ficam na UI)
+          const fallbackColors = {
             "Mercúrio": 0xaaaaaa,
             "Vénus": 0xffcc66,
             "Terra": 0x2233ff,
@@ -346,11 +330,10 @@
             "Plutão": 0xcccccc,
             "default": 0xffffff
           };
-          let fallbackColor = fallbackColors[planetData.name] || fallbackColors["default"];
-          let material = new THREE.MeshBasicMaterial({ color: fallbackColor });
+          let material = new THREE.MeshBasicMaterial({ color: fallbackColors[planetData.name] || fallbackColors["default"] });
           
           let mesh;
-          if (["Terra", "Nope"].includes(planetData.name)) {
+          if(["Terra","Nope"].includes(planetData.name)) {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -371,8 +354,8 @@
             planetData.mesh = mesh;
           }
           
-          // Criação da linha de órbita (usando sim_a)
-          let pts = (function(planet, numPoints = 200) {
+          // Cria a linha da órbita com base em sim_a
+          let pts = (function(planet, numPoints=200) {
             let pts = [];
             let a = planet.real_a * distanceScaleFactor;
             let e = planet.e, i = deg2rad(planet.i),
@@ -394,22 +377,18 @@
           scene.add(linhaOrbita);
           planetData.linhaOrbita = linhaOrbita;
           
-          // Armazena os valores reais para edição na UI
+          // Guarda os dados reais para edição na UI
           planets.push(planetData);
         }
         
-        // Criação dos planetas iniciais (todos, incluindo Plutão)
-        planetsData.forEach(pd => { criarPlaneta(pd); });
-        
         // =============================
-        // Função de Criação de Lua para um Planeta
+        // Função para criar uma lua para um planeta
         // =============================
         function criarLua(planeta, luaData) {
           let grupoOrbita = new THREE.Group();
           scene.add(grupoOrbita);
           let sim_size = luaData.real_diameter ? luaData.real_diameter * sizeScaleFactor : (planeta.tamanho / 4);
           let geometry = new THREE.SphereGeometry(sim_size, 160, 160);
-          // Para diagnóstico, usa uma cor fixa para luas
           let material = new THREE.MeshBasicMaterial({ color: 0x888888 });
           let mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
@@ -423,16 +402,7 @@
           planeta.luas.push(luaData);
         }
         
-        // Exemplo: Lua da Terra (valores reais: distância ~384400 km, diâmetro ~3474 km)
-        let terra = planetsData.find(p => p.name === "Terra");
-        if (terra) {
-          criarLua(terra, { name: "Lua da Terra", period: 27.32, distancia: 384400, real_diameter: 3474 });
-        }
-        // Exemplo: Lua de Nope (valores fictícios)
-        let nope = planetsData.find(p => p.name === "Nope");
-        if (nope) {
-          criarLua(nope, { name: "Lua de Nope", period: 0.25, distancia: 200000, real_diameter: 3474 });
-        }
+        // Não há planetas pré-carregados – o array planets inicia vazio.
         
         // =============================
         // Dropdown para selecionar o planeta em destaque (para zoom)
@@ -451,11 +421,11 @@
         }
         atualizarDropdownDestaque();
         highlightSelect.addEventListener("change", function(){
-          // O alvo do zoom é atualizado na função getZoomTarget()
+          // O alvo do zoom será atualizado na função getZoomTarget()
         });
         
         // =============================
-        // Menu de Configuração – Separadores (Tabs) para Planetas e Luas
+        // Menu de Configuração – Tabs para planetas e luas
         // =============================
         const configButton = document.getElementById("configButton");
         const configPanel = document.getElementById("configPanel");
@@ -464,10 +434,14 @@
         const planetContentsDiv = document.getElementById("planetContents");
         
         function atualizarTabsPlanetas() {
-          // Ordena os planetas pelo valor real_a
-          planets.sort((p1, p2) => p1.real_a - p2.real_a);
           planetTabsDiv.innerHTML = "";
           planetContentsDiv.innerHTML = "";
+          // Se não houver planetas, mostra apenas o botão para adicionar
+          if (planets.length === 0) {
+            let aviso = document.createElement("p");
+            aviso.textContent = "Nenhum planeta adicionado.";
+            planetContentsDiv.appendChild(aviso);
+          }
           planets.forEach((planeta, index) => {
             let btnTab = document.createElement("button");
             btnTab.textContent = (index + 1) + " - " + planeta.name;
@@ -557,7 +531,7 @@
               divCampo.appendChild(input);
               divContent.appendChild(divCampo);
             });
-            // Se o planeta tiver luas, cria sub-tabs
+            // Se houver luas, cria sub-tabs para elas
             let divLuas = document.createElement("div");
             divLuas.innerHTML = "<div class='sectionTitle'>Luas</div>";
             let luaTabs = document.createElement("div");
@@ -617,7 +591,7 @@
             btnAddLua.textContent = "➕ Adicionar Lua";
             btnAddLua.style.marginTop = "4px";
             btnAddLua.addEventListener("click", function(){
-              let novaLua = { name: "Nova Lua", period: 5, distancia: (planeta.real_diameter || 12756) + 3000, real_diameter: 3000 };
+              let novaLua = { name: "Nova Lua", period: 5, distancia: 3000, real_diameter: 3000 };
               criarLua(planeta, novaLua);
               atualizarTabsPlanetas();
               selecionarTabPlaneta(index);
@@ -634,7 +608,7 @@
           btnAddPlaneta.addEventListener("click", function(){
             let novoPlaneta = {
               name: "Novo Planeta",
-              real_a: 2 * 149597870,
+              real_a: 2 * 149597870,  // 2 UA (em km)
               e: 0.1,
               i: 5,
               Ω: 0,
@@ -691,9 +665,6 @@
           let selectedName = highlightSelect.value;
           let p = planets.find(p => p.name === selectedName);
           if (p) return p.pivot ? p.pivot.position : p.mesh.position;
-          let nope = planets.find(p => p.name === "Nope");
-          if (nope) return nope.pivot ? nope.pivot.position : nope.mesh.position;
-          if (planets.length) return planets[0].pivot ? planets[0].pivot.position : planets[0].mesh.position;
           return new THREE.Vector3();
         }
         function updateControlsTarget() {
@@ -733,7 +704,7 @@
           if (document.activeElement !== dateInput)
             dateInput.value = formatForInput(simDate);
           
-          // Atualiza posição e rotação dos planetas (usando os valores escalados)
+          // Atualiza posição e rotação dos planetas
           planets.forEach(planeta => {
             let a = planeta.real_a * distanceScaleFactor;
             let pos = (function(planet, time) {
@@ -744,11 +715,11 @@
               let n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               let E = solveKepler(M, e);
-              let f = 2 * Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+              let f = 2 * Math.atan2(Math.sqrt(1+e) * Math.sin(E/2), Math.sqrt(1-e) * Math.cos(E/2));
               let r = a * (1 - e * Math.cos(E));
-              let X = r * (Math.cos(Ω)*Math.cos(ω+f) - Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Y = r * (Math.sin(Ω)*Math.cos(ω+f) + Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Z = r * (Math.sin(ω+f)*Math.sin(i));
+              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Z = r * (Math.sin(ω+f) * Math.sin(i));
               let escala = 50;
               return new THREE.Vector3(X * escala, Z * escala, Y * escala);
             })(planeta, simulationTime);
@@ -769,7 +740,6 @@
               }
             }
           });
-          // Atualiza movimento das luas
           planets.forEach(planeta => {
             if (planeta.luas) {
               planeta.luas.forEach(lua => {
