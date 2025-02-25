@@ -185,9 +185,9 @@
     <div id="ui">
       <!-- Campo para inserção manual da data -->
       <input type="date" id="dateInput">
-      <!-- Slider para controlo temporal (infinito) -->
+      <!-- Slider para controlo temporal (valores de -4 a +4) -->
       <div>
-        <input type="range" id="timeSlider" step="1">
+        <input type="range" id="timeSlider" min="-4" max="4" step="1" value="0">
       </div>
     </div>
 
@@ -229,44 +229,24 @@
         // Variáveis de controlo do tempo
         // =============================
         const refDate = new Date();  // Data de referência
-        let simulationTime = 0;      // Offset em dias relativamente a refDate
-        const baseRate = 1;          // 1 dia/segundo por padrão
-        const maxSlider = 10000;     // Valor máximo do slider
-        let sliderVelocity = 0;
-        
-        // Função para calcular velocidade extra com função quadrática:
-        // Se sliderValue >= 0: extra = 9 * (valor/maxSlider)²; se negativo: extra = -11 * (|valor|/maxSlider)².
-        // Assim, para sliderValue = maxSlider, velocidade = 1 + 9 = 10 dias/segundo,
-        // e para sliderValue = -maxSlider, velocidade = 1 - 11 = -10 dias/segundo.
-        function calcularVelocidadeExtra(valor) {
-          if (valor >= 0) {
-            return baseRate + 9 * Math.pow(valor / maxSlider, 2);
-          } else {
-            return baseRate - 11 * Math.pow(Math.abs(valor) / maxSlider, 2);
-          }
-        }
-        
-        // Elementos do Menu à Esquerda
+        let simulationTime = 0;      // Offset (em dias) relativamente à data de referência
+        // Mapeamento de velocidade (em dias/segundo) para o slider:
+        // 0: 1 dia/seg, 1: 10 dias/seg, 2: 30 dias/seg (1 mês), 3: 365 dias/seg (1 ano), 4: 3650 dias/seg (10 anos)
+        // Valores negativos correspondem ao mesmo, em sentido inverso.
+        const speedMapping = {
+          "-4": -3650,
+          "-3": -365,
+          "-2": -30,
+          "-1": -10,
+           "0": 1,
+           "1": 10,
+           "2": 30,
+           "3": 365,
+           "4": 3650
+        };
         const timeSlider = document.getElementById('timeSlider');
         const dateInput = document.getElementById('dateInput');
-        // Configura o slider com uma faixa ampla para simular um controlo "infinito"
-        timeSlider.min = -maxSlider;
-        timeSlider.max = maxSlider;
-        timeSlider.value = 0;
-        
-        // Atualiza o slider: o valor atual determina a velocidade extra
-        timeSlider.addEventListener("input", function() {
-          sliderVelocity = parseFloat(this.value);
-        });
-        // Ao terminar o arrasto, reinicia o slider ao centro
-        function resetSlider() {
-          timeSlider.value = 0;
-          sliderVelocity = 0;
-        }
-        timeSlider.addEventListener("mouseup", resetSlider);
-        timeSlider.addEventListener("touchend", resetSlider);
-        
-        // Permite inserir manualmente a data – atualiza simulationTime
+        // Inicializa o campo de data
         function formatForInput(date) {
           let yyyy = date.getFullYear();
           let mm = String(date.getMonth()+1).padStart(2, '0');
@@ -349,7 +329,7 @@
           { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, axialTilt:3 }
         ];
         
-        // Mapeamento de Texturas – se um novo planeta for adicionado, usa-se textura por defeito se necessário
+        // Mapeamento de Texturas – usa textura por defeito se necessário
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vénus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -476,12 +456,12 @@
           planeta.luas.push(luaData);
         }
         
-        // Criar exemplo de lua para a Terra
+        // Exemplo: Criar lua para a Terra
         let terra = planetsData.find(p => p.name==="Terra");
         if(terra) {
           criarLua(terra, { name:"Lua da Terra", period:10, distancia:8, tamanho: terra.tamanho/4 });
         }
-        // Criar exemplo de lua para Nope
+        // Exemplo: Criar lua para Nope
         let nope = planetsData.find(p => p.name==="Nope");
         if(nope) {
           criarLua(nope, { name:"Lua de Nope", period:0.25, distancia:4.5, tamanho: nope.tamanho/16 });
@@ -496,7 +476,6 @@
         const planetTabsDiv = document.getElementById("planetTabs");
         const planetContentsDiv = document.getElementById("planetContents");
         
-        // Atualiza os separadores dos planetas (ordenados por distância média ao Sol)
         function atualizarTabsPlanetas() {
           // Ordena os planetas pelo valor "a"
           planets.sort((p1, p2) => p1.a - p2.a);
@@ -507,6 +486,14 @@
             let btnTab = document.createElement("button");
             btnTab.textContent = (index + 1) + " - " + planeta.name;
             btnTab.addEventListener("click", () => { selecionarTabPlaneta(index); });
+            // Permite renomear com duplo clique
+            btnTab.ondblclick = function(){
+              let novoNome = prompt("Insira o novo nome para este planeta:", planeta.name);
+              if(novoNome) {
+                planeta.name = novoNome;
+                atualizarTabsPlanetas();
+              }
+            };
             planetTabsDiv.appendChild(btnTab);
             
             // Conteúdo do planeta
@@ -537,7 +524,6 @@
               input.value = planeta[campo.key] || 0;
               input.addEventListener("change", function(){
                 planeta[campo.key] = parseFloat(this.value);
-                // Se alterar parâmetros orbitais, atualiza a linha da órbita
                 if(["a","e","i","Ω","ω"].includes(campo.key)) {
                   scene.remove(planeta.linhaOrbita);
                   let pts = (function(planet, numPoints=200){
@@ -566,7 +552,7 @@
               divCampo.appendChild(input);
               divContent.appendChild(divCampo);
             });
-            // Opção "Em Destaque" – para definir o alvo do zoom
+            // Opção "Em Destaque"
             let divDestaque = document.createElement("div");
             divDestaque.classList.add("configField");
             let lblDestaque = document.createElement("label");
@@ -576,7 +562,6 @@
             chkDestaque.checked = planeta.destacado;
             chkDestaque.addEventListener("change", function(){
               if(this.checked) {
-                // Desmarca os outros
                 planets.forEach(p => p.destacado = false);
                 planeta.destacado = true;
               } else {
@@ -595,14 +580,12 @@
             luaTabs.classList.add("moonTabs");
             let luaContents = document.createElement("div");
             if(planeta.luas && planeta.luas.length) {
-              // Ordena as luas pela propriedade "distancia"
               planeta.luas.sort((l1, l2) => (l1.distancia || 0) - (l2.distancia || 0));
               planeta.luas.forEach((lua, li) => {
                 let btnLua = document.createElement("button");
                 btnLua.textContent = (li+1) + " - " + lua.name;
                 btnLua.addEventListener("click", () => { selecionarTabLua(divContent, li); });
                 luaTabs.appendChild(btnLua);
-                // Conteúdo da lua
                 let divLuaContent = document.createElement("div");
                 divLuaContent.classList.add("moonContent");
                 let camposLua = [
@@ -633,7 +616,6 @@
               msg.textContent = "Sem luas definidas.";
               luaContents.appendChild(msg);
             }
-            // Botão para adicionar nova lua
             let btnAddLua = document.createElement("button");
             btnAddLua.textContent = "➕ Adicionar Lua";
             btnAddLua.style.marginTop = "4px";
@@ -650,7 +632,6 @@
             
             planetContentsDiv.appendChild(divContent);
           });
-          // Separador final para adicionar novo planeta
           let btnAddPlaneta = document.createElement("button");
           btnAddPlaneta.textContent = "➕";
           btnAddPlaneta.addEventListener("click", function(){
@@ -676,7 +657,6 @@
           if(planets.length) selecionarTabPlaneta(0);
         }
         
-        // Seleciona a tab do planeta com índice 'index'
         function selecionarTabPlaneta(index) {
           Array.from(planetTabsDiv.children).forEach((btn, i) => {
             if(i < planets.length) btn.classList.toggle("active", i === index);
@@ -686,7 +666,6 @@
           });
         }
         
-        // (Função auxiliar para selecionar tab de lua – se necessário)
         function selecionarTabLua(planetContentDiv, index) {
           let luaTabs = planetContentDiv.querySelectorAll(".moonTabs button");
           let luaContents = planetContentDiv.querySelectorAll(".moonContent");
@@ -707,8 +686,7 @@
         });
         
         // =============================
-        // Atualização do Target da Câmara (Zoom)
-        // Se existir um planeta "Em Destaque", esse é o alvo; caso contrário, se existir "Nope" utiliza-o; se não, usa o primeiro planeta.
+        // Função de "Destaque" – Calcula o alvo do zoom utilizando o Sol e o planeta destacado
         // =============================
         function getZoomTarget() {
           let destacado = planets.find(p => p.destacado);
@@ -719,12 +697,27 @@
           return new THREE.Vector3();
         }
         function updateControlsTarget() {
-          let targetPos = getZoomTarget();
-          controls.target.lerp(targetPos, 0.05);
+          let targetPlanetPos = getZoomTarget();
+          let D = new THREE.Vector3().subVectors(targetPlanetPos, sun.position).normalize();
+          let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
+          let projLength = camOffset.dot(D);
+          let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
+          let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
+          let L = vector2.length();
+          let t;
+          if(L > 200) {
+            t = 0;
+          } else if(L < 50) {
+            t = 1;
+          } else {
+            t = (200 - L) / 150;
+          }
+          let newTarget = new THREE.Vector3().lerpVectors(sun.position, targetPlanetPos, t);
+          controls.target.lerp(newTarget, 0.05);
         }
         
         // =============================
-        // Loop de Animação – Evolução Temporal Contínua
+        // Loop de Animação – Evolução Temporal com "salto" discreto
         // =============================
         let lastFrameTime = performance.now();
         function animate() {
@@ -733,12 +726,12 @@
           let dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Calcula a velocidade efetiva a partir do slider (velocidade aumenta quadraticamente ao colar-se nos extremos)
-          let effectiveSpeed = (sliderVelocity == 0) ? baseRate : calcularVelocidadeExtra(sliderVelocity);
+          // Obtém o valor do slider (discreto: -4 a +4) e calcula a velocidade em dias/segundo
+          let sliderValue = parseInt(timeSlider.value);
+          let effectiveSpeed = speedMapping[sliderValue];
           simulationTime += dt * effectiveSpeed;
           let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
-          
-          // Atualiza o campo de data (formato YYYY-MM-DD)
+          // Atualiza o campo de data (sem label duplicada)
           if(document.activeElement !== dateInput)
             dateInput.value = formatForInput(simDate);
           
@@ -751,13 +744,13 @@
               let n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               let E = solveKepler(M, e);
-              let f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E/2), Math.sqrt(1 - e) * Math.cos(E/2));
+              let f = 2 * Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
               let r = a * (1 - e * Math.cos(E));
-              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
-              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
-              let Z = r * (Math.sin(ω+f) * Math.sin(i));
+              let X = r * (Math.cos(Ω)*Math.cos(ω+f) - Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r * (Math.sin(Ω)*Math.cos(ω+f) + Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r * (Math.sin(ω+f)*Math.sin(i));
               let escala = 50;
-              return new THREE.Vector3(X * escala, Z * escala, Y * escala);
+              return new THREE.Vector3(X*escala, Z*escala, Y*escala);
             })(planeta, simulationTime);
             if(planeta.pivot) {
               planeta.pivot.position.copy(pos);
