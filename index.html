@@ -199,9 +199,9 @@
     
     <script>
       (function(){
-        // Fatores de escala para converter valores reais em km para a escala da simulação
+        // Fatores de escala para converter valores reais (km) para a escala da simulação
         const distanceScaleFactor = 1 / 149597870;  // 1 UA = 149.597.870 km
-        const sizeScaleFactor = 3.5 / 12756;          // Terra: 12756 km → 3.5 (valor simulado)
+        const sizeScaleFactor = 3.5 / 12756;          // Terra: 12756 km → 3.5 (escala de simulação)
         
         // =============================
         // Cena, Câmara, Renderer e Controles
@@ -236,7 +236,7 @@
         // =============================
         const refDate = new Date();  // Data de referência
         let simulationTime = 0;      // Offset (em dias) relativamente à data de referência
-        // Mapeamento do slider (valores de -4 a +4) para velocidade (em dias/segundo):
+        // Mapeamento do slider (de -4 a +4) para velocidades (em dias/segundo)
         // -4: -3650, -3: -365, -2: -30, -1: -10, 0: 1, 1: 10, 2: 30, 3: 365, 4: 3650
         const speedMapping = {
           "-4": -3650,
@@ -323,7 +323,7 @@
         
         // =============================
         // Dados Reais dos Planetas
-        // (Valores reais – unidades em km, kg e dias)
+        // (Valores em km, kg, dias – para exibição)
         // =============================
         const planetsData = [
           { name:"Mercúrio", real_a:57909227, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, axialTilt:0, real_diameter:4879, mass:3.301e23 },
@@ -339,10 +339,10 @@
         ];
         
         // =============================
-        // Função de Criação de Planeta (usa os valores reais convertidos para escala de simulação)
+        // Função de Criação de Planeta (os valores exibidos são reais, mas a simulação usa os valores escalados)
         // =============================
         function criarPlaneta(planetData) {
-          // Calcula o valor simulado de "a" e do diâmetro:
+          // Converte distância e diâmetro reais para escala de simulação
           let sim_a = planetData.real_a * distanceScaleFactor;
           let sim_size = planetData.real_diameter * sizeScaleFactor;
           
@@ -365,7 +365,6 @@
           }
           
           let mesh;
-          // Para planetas com rotação inclinada (ex: Terra, Nope) usamos um pivot
           if(["Terra","Nope"].includes(planetData.name)) {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
@@ -388,12 +387,12 @@
           }
           
           // Criação da linha de órbita usando sim_a
-          let pontosOrbita = (function(planet, numPoints=200){
+          let pontosOrbita = (function(planet, numPoints = 200) {
             let pts = [];
-            let a = planet.real_a ? planet.real_a * distanceScaleFactor : planet.a;
+            let a = planet.real_a * distanceScaleFactor;
             let e = planet.e, i = deg2rad(planet.i),
                 Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
-            for(let j = 0; j <= numPoints; j++){
+            for (let j = 0; j <= numPoints; j++) {
               let f = 2 * Math.PI * j / numPoints;
               let r = a * (1 - e * e) / (1 + e * Math.cos(f));
               let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
@@ -410,10 +409,8 @@
           scene.add(linhaOrbita);
           planetData.linhaOrbita = linhaOrbita;
           
-          // Armazena os dados reais para edição na UI
-          planetData.real_a = planetData.real_a;
-          planetData.real_diameter = planetData.real_diameter;
-          
+          // Armazena os valores reais para edição na UI
+          // (planeta.real_a, planet.real_diameter, planet.mass permanecem)
           planets.push(planetData);
         }
         
@@ -426,6 +423,7 @@
         function criarLua(planeta, luaData) {
           let grupoOrbita = new THREE.Group();
           scene.add(grupoOrbita);
+          // Se houver valor real para diâmetro da lua, usa-o; caso contrário, assume uma fração do planeta
           let sim_size = luaData.real_diameter ? luaData.real_diameter * sizeScaleFactor : (planeta.tamanho / 4);
           let geometry = new THREE.SphereGeometry(sim_size, 160, 160);
           let texData = textureMap[luaData.name] || { texture:"default-moon-texture.jpg", displacement:"default-moon-displacement.jpg" };
@@ -442,8 +440,8 @@
           let mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          // Usa a propriedade "distancia" (em km) e aplica um mesmo factor de escala que a distância (distanceScaleFactor)
-          let sim_dist = luaData.distancia ? luaData.distancia * distanceScaleFactor : (planeta.real_diameter * sizeScaleFactor + 2);
+          // Usa a propriedade "distancia" (em km) e aplica o mesmo fator de escala que para a distância
+          let sim_dist = luaData.distancia * distanceScaleFactor;
           mesh.position.set(sim_dist, 0, 0);
           grupoOrbita.add(mesh);
           luaData.grupoOrbita = grupoOrbita;
@@ -452,26 +450,24 @@
           planeta.luas.push(luaData);
         }
         
-        // Exemplo: Criar a lua da Terra (valores reais)
+        // Exemplo: Criar a lua da Terra (valores reais: distância ~384400 km, diâmetro ~3474 km)
         let terra = planetsData.find(p => p.name === "Terra");
         if (terra) {
-          // Lua da Terra: distância média ~384.400 km, diâmetro ~3474 km
           criarLua(terra, { name: "Lua da Terra", period: 27.32, distancia: 384400, real_diameter: 3474 });
         }
         // Exemplo: Criar a lua de Nope (valores fictícios)
         let nope = planetsData.find(p => p.name === "Nope");
         if (nope) {
-          // Para "Nope", definimos arbitrariamente uma lua: distância 200.000 km, diâmetro 3474 km (exemplo)
           criarLua(nope, { name: "Lua de Nope", period: 0.25, distancia: 200000, real_diameter: 3474 });
         }
         
         // =============================
-        // Dropdown para selecionar o planeta em destaque (para o zoom)
+        // Dropdown para selecionar o planeta em destaque
         // =============================
         const highlightSelect = document.getElementById("highlightSelect");
         function atualizarDropdownDestaque() {
           highlightSelect.innerHTML = "";
-          // Ordena os planetas pelo valor "real_a"
+          // Ordena os planetas pelo valor real_a
           planets.sort((p1, p2) => p1.real_a - p2.real_a);
           planets.forEach((p, i) => {
             let option = document.createElement("option");
@@ -482,7 +478,7 @@
         }
         atualizarDropdownDestaque();
         highlightSelect.addEventListener("change", function(){
-          // O alvo do zoom será atualizado na função getZoomTarget()
+          // O alvo do zoom é atualizado na função getZoomTarget()
         });
         
         // =============================
@@ -500,7 +496,6 @@
           planetTabsDiv.innerHTML = "";
           planetContentsDiv.innerHTML = "";
           planets.forEach((planeta, index) => {
-            // Botão da tab – exibe "posição - nome" e permite renomear com duplo clique
             let btnTab = document.createElement("button");
             btnTab.textContent = (index + 1) + " - " + planeta.name;
             btnTab.addEventListener("click", () => { selecionarTabPlaneta(index); });
@@ -514,11 +509,9 @@
             };
             planetTabsDiv.appendChild(btnTab);
             
-            // Conteúdo do planeta
             let divContent = document.createElement("div");
             divContent.classList.add("planetContent");
             divContent.dataset.index = index;
-            // Lista de campos – usamos os reais para "a", "Diâmetro" e "Massa"
             let campos = [
               { key: "a", label: "Distância Média ao Sol (km)" },
               { key: "e", label: "Excentricidade" },
@@ -540,7 +533,6 @@
               let input = document.createElement("input");
               input.type = "number";
               input.step = "any";
-              // Se for "a", "tamanho" ou "mass", usamos os valores reais
               if(campo.key === "a") {
                 input.value = planeta.real_a;
               } else if(campo.key === "tamanho") {
@@ -554,26 +546,20 @@
                 let value = parseFloat(this.value);
                 if(campo.key === "a") {
                   planeta.real_a = value;
+                  planeta.a = value * distanceScaleFactor;
                 } else if(campo.key === "tamanho") {
                   planeta.real_diameter = value;
+                  planeta.tamanho = value * sizeScaleFactor;
                 } else if(campo.key === "mass") {
                   planeta.mass = value;
                 } else {
                   planeta[campo.key] = value;
                 }
-                // Atualiza os valores de simulação se aplicável:
-                // Para "a" e "tamanho", recalcula os valores simulados
-                if(campo.key === "a") {
-                  planeta.a = planeta.real_a * distanceScaleFactor;
-                } else if(campo.key === "tamanho") {
-                  planeta.tamanho = planeta.real_diameter * sizeScaleFactor;
-                }
-                // Se forem parâmetros orbitais, atualiza a linha de órbita
-                if(["a", "e", "i", "Ω", "ω"].includes(campo.key)) {
+                if(["a","e","i","Ω","ω"].includes(campo.key)) {
                   scene.remove(planeta.linhaOrbita);
                   let pts = (function(planet, numPoints = 200) {
                     let pts = [];
-                    let a = planet.real_a ? planet.real_a * distanceScaleFactor : planet.a;
+                    let a = planet.real_a * distanceScaleFactor;
                     let e = planet.e, i = deg2rad(planet.i),
                         Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
                     for (let j = 0; j <= numPoints; j++) {
@@ -598,7 +584,7 @@
               divCampo.appendChild(input);
               divContent.appendChild(divCampo);
             });
-            // Se o planeta tiver luas, cria sub-tabs (ordenadas pela distância ao planeta)
+            // Se houver luas, cria sub-tabs
             let divLuas = document.createElement("div");
             divLuas.innerHTML = "<div class='sectionTitle'>Luas</div>";
             let luaTabs = document.createElement("div");
@@ -675,7 +661,7 @@
           btnAddPlaneta.addEventListener("click", function(){
             let novoPlaneta = {
               name: "Novo Planeta",
-              real_a: 2 * 149597870,  // 2 UA em km
+              real_a: 2 * 149597870,
               e: 0.1,
               i: 5,
               Ω: 0,
@@ -718,6 +704,9 @@
         // =============================
         // Controlo do Painel de Configuração
         // =============================
+        const configButton = document.getElementById("configButton");
+        const configPanel = document.getElementById("configPanel");
+        const closeConfig = document.getElementById("closeConfig");
         configButton.addEventListener("click", () => {
           configPanel.style.display = configPanel.style.display === "none" ? "block" : "none";
         });
@@ -775,23 +764,24 @@
           if (document.activeElement !== dateInput)
             dateInput.value = formatForInput(simDate);
           
-          // Atualiza posição e rotação dos planetas (usando os valores simulados a partir dos reais)
+          // Atualiza posição e rotação dos planetas (usando os valores escalados a partir dos reais)
           planets.forEach(planeta => {
-            let a = (planeta.real_a ? planeta.real_a * distanceScaleFactor : planeta.a);
+            // Use o valor simulado de "a" derivado de real_a
+            let a = planeta.real_a * distanceScaleFactor;
             let pos = (function(planet, time) {
-              let e = planet.e, i = deg2rad(planet.i),
+              let a = planet.real_a * distanceScaleFactor, e = planet.e, i = deg2rad(planet.i),
                   Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
                   period = planet.period;
               let n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               let E = solveKepler(M, e);
-              let f = 2 * Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+              let f = 2 * Math.atan2(Math.sqrt(1+e) * Math.sin(E/2), Math.sqrt(1-e) * Math.cos(E/2));
               let r = a * (1 - e * Math.cos(E));
-              let X = r * (Math.cos(Ω)*Math.cos(ω+f) - Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Y = r * (Math.sin(Ω)*Math.cos(ω+f) + Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Z = r * (Math.sin(ω+f)*Math.sin(i));
+              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Z = r * (Math.sin(ω+f) * Math.sin(i));
               let escala = 50;
-              return new THREE.Vector3(X*escala, Z*escala, Y*escala);
+              return new THREE.Vector3(X * escala, Z * escala, Y * escala);
             })(planeta, simulationTime);
             if (planeta.pivot) {
               planeta.pivot.position.copy(pos);
