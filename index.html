@@ -2,249 +2,94 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.9 – Configuração dinâmica e relatório comparativo</title>
+    <title>Nope v1.5 – Configuração Interativa</title>
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        background: #000;
-        color: white;
-        font-family: Arial, sans-serif;
-      }
-      /* Botão para abrir/fechar o menu */
-      #menuToggle {
-        position: fixed;
+      body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
+      #ui {
+        position: absolute;
         top: 10px;
         left: 10px;
-        background: #333;
-        border: none;
-        color: white;
-        font-size: 12px;
-        padding: 6px 10px;
-        cursor: pointer;
-        z-index: 300;
-        border-radius: 4px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
       }
-      /* Menu de configuração (sidebar) */
-      #menu {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 250px;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.85);
-        color: white;
+      #diagnostics {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+      #configPanel {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        max-height: 400px;
         overflow-y: auto;
-        transform: translateX(-260px);
-        transition: transform 0.3s ease;
-        z-index: 200;
-        padding: 10px 15px;
         font-size: 12px;
       }
-      #menu.open { transform: translateX(0); }
-      #menu h3 {
-        margin-bottom: 8px;
-        border-bottom: 1px solid #444;
-        padding-bottom: 4px;
-      }
-      .config-group {
-        margin-bottom: 8px;
-      }
-      .config-group label {
-        display: block;
-        margin-bottom: 2px;
-      }
-      .config-group input {
-        width: 100%;
-        font-size: 12px;
-        padding: 2px 4px;
-        border-radius: 3px;
-        border: 1px solid #555;
-        background: #222;
-        color: white;
-      }
-      .config-group small {
-        font-size: 10px;
-        color: #aaa;
-      }
-      /* Controles de simulação integrados */
-      #simControls {
-        margin-bottom: 10px;
-      }
-      #simControls label,
-      #simControls input {
-        font-size: 12px;
-      }
-      #simControls input[type="range"] { width: 100%; }
-      /* Botão para fechar o menu */
-      #closeMenu {
-        background: #444;
-        border: none;
-        color: white;
-        font-size: 12px;
-        padding: 4px 8px;
-        cursor: pointer;
-        border-radius: 4px;
-        margin-bottom: 10px;
-      }
-      /* Relatório Comparativo */
-      #reportSection {
-        margin-top: 10px;
-      }
-      #reportSection h3 { margin-bottom: 4px; }
-      #reportTable {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 10px;
-      }
-      #reportTable th, #reportTable td {
-        border: 1px solid #555;
-        padding: 2px 4px;
-        text-align: center;
-      }
+      input, label, button { font-size: 14px; margin:2px 0; }
+      #ui button { width: 60px; height: 60px; font-size: 24px; }
+      fieldset { border: 1px solid #555; margin-bottom: 8px; padding: 5px; }
+      legend { font-size: 14px; }
     </style>
   </head>
   <body>
-    <!-- Botão de toggle para abrir/fechar o menu -->
-    <button id="menuToggle">Configurações</button>
-    
-    <!-- Menu de Configuração -->
-    <div id="menu">
-      <button id="closeMenu">Fechar</button>
-      <div id="simControls">
-        <h3>Simulação</h3>
-        <div class="config-group">
-          <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label>
-          <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
-        </div>
-        <div class="config-group">
-          <label for="dateInput">Data:</label>
-          <input type="date" id="dateInput">
-        </div>
-        <div class="config-group">
-          <span id="currentDate"></span>
-        </div>
+    <!-- Interface de Controlo Principal -->
+    <div id="ui">
+      <div>
+        <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
+        <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
       </div>
-      
-      <h3>Configuração de Nope</h3>
-      <div class="config-group">
-        <label for="nope_a">Semi-eixo maior (a):</label>
-        <input type="number" id="nope_a" value="1.59" step="0.01">
-        <small>(Em UA – Terra = 1.0 UA)</small>
+      <div style="margin-top:8px;">
+        <button id="speedDown">–</button>
+        <button id="speedUp">+</button>
       </div>
-      <div class="config-group">
-        <label for="nope_e">Excentricidade (e):</label>
-        <input type="number" id="nope_e" value="0.3" step="0.01">
-        <small>(Terra ~ 0.0167)</small>
+      <div style="margin-top:8px;">
+        <label for="dateInput">Data:</label><br>
+        <input type="date" id="dateInput">
       </div>
-      <div class="config-group">
-        <label for="nope_i">Inclinação orbital (i):</label>
-        <input type="number" id="nope_i" value="90" step="1">
-        <small>(Em graus – Terra = 0°)</small>
+      <div style="margin-top:8px;">
+        <span id="currentDate"></span>
       </div>
-      <div class="config-group">
-        <label for="nope_Omega">Longitude do nodo (Ω):</label>
-        <input type="number" id="nope_Omega" value="0.0" step="0.1">
-      </div>
-      <div class="config-group">
-        <label for="nope_omega">Argumento do periélio (ω):</label>
-        <input type="number" id="nope_omega" value="0.0" step="0.1">
-      </div>
-      <div class="config-group">
-        <label for="nope_M0">Anomalia média inicial (M0):</label>
-        <input type="number" id="nope_M0" value="0.0" step="0.1">
-      </div>
-      <div class="config-group">
-        <label for="nope_period">Período orbital (Ano):</label>
-        <input type="number" id="nope_period" value="730" step="1">
-        <small>(Em dias)</small>
-      </div>
-      <div class="config-group">
-        <label for="nope_rotationPeriod">Período de rotação (Dia):</label>
-        <input type="number" id="nope_rotationPeriod" value="26" step="0.1">
-        <small>(Em horas)</small>
-      </div>
-      <div class="config-group">
-        <label for="nope_axialTilt">Inclinação axial:</label>
-        <input type="number" id="nope_axialTilt" value="45" step="1">
-        <small>(Em graus – referência Terra: 23.5°)</small>
-      </div>
-      
-      <h3>Configuração da Lua de Nope</h3>
-      <div class="config-group">
-        <label for="nopeMoon_distance">Distância orbital:</label>
-        <input type="number" id="nopeMoon_distance" value="4.5" step="0.1">
-        <small>(Valor exato, relativo ao raio de Nope)</small>
-      </div>
-      <div class="config-group">
-        <label for="nopeMoon_period">Período orbital da Lua:</label>
-        <input type="number" id="nopeMoon_period" value="0.25" step="0.01">
-        <small>(Em dias – 0.25 = 6 horas)</small>
-      </div>
-      <div class="config-group">
-        <label for="nopeMoon_size">Tamanho da Lua:</label>
-        <input type="number" id="nopeMoon_size" value="0.1875" step="0.0001">
-        <small>(Valor exato – 1/16 do raio de Nope, se Nope = 3)</small>
-      </div>
-      <div class="config-group">
-        <label for="nopeMoon_dispScale">Displacement Scale da Lua:</label>
-        <input type="number" id="nopeMoon_dispScale" value="0.0047" step="0.0001">
-      </div>
-      <div class="config-group">
-        <label for="nopeMoon_orbitTilt">Inclinação da órbita da Lua:</label>
-        <input type="number" id="nopeMoon_orbitTilt" value="15" step="1">
-        <small>(Em graus)</small>
-      </div>
-      
-      <!-- Relatório Comparativo -->
-      <div id="reportSection">
-        <h3>Relatório Comparativo</h3>
-        <table id="reportTable">
-          <thead>
-            <tr>
-              <th>Característica</th>
-              <th>Terra</th>
-              <th>Nope</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Semi-eixo maior (a) [UA]</td>
-              <td>1.00</td>
-              <td id="report_nope_a"></td>
-            </tr>
-            <tr>
-              <td>Excentricidade (e)</td>
-              <td>0.0167</td>
-              <td id="report_nope_e"></td>
-            </tr>
-            <tr>
-              <td>Período orbital (Ano) [dias]</td>
-              <td>365.256</td>
-              <td id="report_nope_year"></td>
-            </tr>
-            <tr>
-              <td>Período de rotação (Dia) [horas]</td>
-              <td>24</td>
-              <td id="report_nope_day"></td>
-            </tr>
-            <tr>
-              <td>Inclinação axial [°]</td>
-              <td>23.5</td>
-              <td id="report_nope_axialTilt"></td>
-            </tr>
-          </tbody>
-        </table>
+      <div style="margin-top:8px; font-size:12px;">
+        (Use mouse ou toque para orbitar, dar zoom e pan)
       </div>
     </div>
-    
+
+    <!-- Diagnóstico -->
+    <div id="diagnostics">
+      Zoom: <span id="zoomValue">0</span> units
+    </div>
+
+    <!-- Painel de Configuração de Parâmetros -->
+    <div id="configPanel">
+      <h3>Configuração de Planetas</h3>
+      <div id="planetsConfig"></div>
+      <button id="addPlanet">Adicionar Planeta</button>
+      <hr>
+      <h3>Configuração de Luas</h3>
+      <div id="moonsConfig"></div>
+      <button id="addMoon">Adicionar Lua</button>
+    </div>
+
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <script>
       (function(){
+        // =============================
         // Cena, câmera, renderer e controles
+        // =============================
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         
@@ -258,6 +103,7 @@
         document.body.appendChild(renderer.domElement);
         
         let textureLoader = new THREE.TextureLoader();
+        
         let controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -269,32 +115,29 @@
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // UI – Controles e Inputs do Menu
+        // =============================
+        // UI Elements Principais
+        // =============================
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
+        const speedDown = document.getElementById('speedDown');
+        const speedUp = document.getElementById('speedUp');
         const dateInput = document.getElementById('dateInput');
         const currentDateLabel = document.getElementById('currentDate');
-        
-        // Inputs para configuração de Nope
-        const nope_aInput = document.getElementById('nope_a');
-        const nope_eInput = document.getElementById('nope_e');
-        const nope_iInput = document.getElementById('nope_i');
-        const nope_OmegaInput = document.getElementById('nope_Omega');
-        const nope_omegaInput = document.getElementById('nope_omega');
-        const nope_M0Input = document.getElementById('nope_M0');
-        const nope_periodInput = document.getElementById('nope_period');
-        const nope_rotationPeriodInput = document.getElementById('nope_rotationPeriod');
-        const nope_axialTiltInput = document.getElementById('nope_axialTilt');
-        
-        // Inputs para configuração da Lua de Nope
-        const nopeMoon_distanceInput = document.getElementById('nopeMoon_distance');
-        const nopeMoon_periodInput = document.getElementById('nopeMoon_period');
-        const nopeMoon_sizeInput = document.getElementById('nopeMoon_size');
-        const nopeMoon_dispScaleInput = document.getElementById('nopeMoon_dispScale');
-        const nopeMoon_orbitTiltInput = document.getElementById('nopeMoon_orbitTilt');
+        const zoomValue = document.getElementById('zoomValue');
         
         let speedSetting = parseInt(speedRange.value);
         speedValue.textContent = speedSetting;
+        speedDown.addEventListener('click', () => {
+          speedSetting = Math.max(1, speedSetting - 1);
+          speedRange.value = speedSetting;
+          speedValue.textContent = speedSetting;
+        });
+        speedUp.addEventListener('click', () => {
+          speedSetting = Math.min(10, speedSetting + 1);
+          speedRange.value = speedSetting;
+          speedValue.textContent = speedSetting;
+        });
         speedRange.addEventListener('input', function(){
           speedSetting = parseInt(this.value);
           speedValue.textContent = speedSetting;
@@ -305,7 +148,7 @@
         let simulationTime = 0; // em dias
         dateInput.addEventListener('change', function(){
           let newDate = new Date(this.value);
-          simulationTime = (newDate - refDate) / 86400000;
+          simulationTime = (newDate - refDate)/86400000;
         });
         function formatDate(date) {
           let yyyy = date.getFullYear();
@@ -317,14 +160,16 @@
         function deg2rad(deg) { return deg * Math.PI/180; }
         function solveKepler(M, e, tolerance=1e-6) {
           let E = M, delta = 1;
-          while (Math.abs(delta) > tolerance) {
-            delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+          while(Math.abs(delta) > tolerance) {
+            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
             E = E - delta;
           }
           return E;
         }
         
+        // =============================
         // Criação do Sol e sua luz
+        // =============================
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
@@ -332,6 +177,7 @@
         sun.castShadow = false;
         sun.receiveShadow = false;
         scene.add(sun);
+        
         let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 1024;
@@ -341,6 +187,7 @@
         sunLight.shadow.bias = -0.005;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
+        
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -355,106 +202,93 @@
         sunSurfaceLayer.receiveShadow = false;
         sun.add(sunSurfaceLayer);
         
-        // Dados dos planetas – Terra e Nope (os demais permanecem inalterados)
-        // Nota: para consistência, a Terra usará axialTilt 23.5°
+        // =============================
+        // Dados e Função de Criação dos Planetas
+        // =============================
+        // Parâmetros básicos dos planetas – estes serão editáveis na interface de configuração.
         const planetsData = [
-          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
-          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:23.5 },
-          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
-          { name:"Nope",    a:parseFloat(nope_aInput.value), e:parseFloat(nope_eInput.value), i:parseFloat(nope_iInput.value),
-            Ω:parseFloat(nope_OmegaInput.value), ω:parseFloat(nope_omegaInput.value), M0:parseFloat(nope_M0Input.value),
-            period:parseFloat(nope_periodInput.value), rotationPeriod:parseFloat(nope_rotationPeriodInput.value),
-            axialTilt:parseFloat(nope_axialTiltInput.value), size:3 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9 },
-          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7 },
-          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2 },
-          { name:"Netuno",  a:30.07, e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1 }
+          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, axialTilt:0 },
+          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, axialTilt:177 },
+          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000,  ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:23.5 },
+          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373,  period:686.980, rotationPeriod:24.6, axialTilt:25 },
+          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,    M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
+          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, axialTilt:3 }
+          // Outros planetas podem ser adicionados aqui.
         ];
+        
+        // Mapeamento de texturas – se um novo planeta for adicionado, poderá ser utilizada uma textura default.
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
           "Terra":   { texture:"earth-texture.jpg", displacement:"earth-displacement.jpg", fallbackColor:0xffffff },
           "Marte":   { texture:"mars-texture.jpg", displacement:"mars-displacement.jpg", fallbackColor:0xffffff },
           "Nope":    { texture:"nope-texture.jpg", displacement:"nope-displacement.jpg", fallbackColor:0xffffff },
-          "Júpiter": { texture:"jupiter-texture.jpg", displacement:"jupiter-displacement.jpg", fallbackColor:0xffffff },
-          "Saturno": { texture:"saturn-texture.jpg", displacement:"saturn-displacement.jpg", fallbackColor:0xffffff },
-          "Urano":   { texture:"uranus-texture.jpg", displacement:"uranus-displacement.jpg", fallbackColor:0xffffff },
-          "Netuno":  { texture:"neptune-texture.jpg", displacement:"neptune-displacement.jpg", fallbackColor:0xffffff }
+          "Júpiter": { texture:"jupiter-texture.jpg", displacement:"jupiter-displacement.jpg", fallbackColor:0xffffff }
         };
         
-        let planets = [];
-        let nopeMesh, earthMesh;
-        planetsData.forEach(planetData => {
+        let planets = []; // Array que guardará os planetas já criados.
+        
+        // Função para criar o planeta e sua órbita com base no objeto planetData.
+        function createPlanet(planetData) {
           let size;
+          // Define o tamanho (pode ser alterado via interface)
           switch(planetData.name) {
             case "Mercúrio": size = 2.5; break;
             case "Vênus":   size = 3; break;
             case "Terra":   size = 3.5; break;
             case "Marte":   size = 3; break;
-            case "Nope":    size = planetData.size; break;
+            case "Nope":    size = 3; break;
             case "Júpiter": size = 7; break;
-            case "Saturno": size = 6; break;
-            case "Urano":   size = 5; break;
-            case "Netuno":  size = 5; break;
-            default:        size = 3;
+            default:        size = planetData.size || 3;
           }
           planetData.size = size;
           let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16;
           let geometry = new THREE.SphereGeometry(size, segments, segments);
-          let texData = textureMap[planetData.name];
+          let texData = textureMap[planetData.name] || { texture:"default-texture.jpg", displacement:"default-displacement.jpg", fallbackColor:0xffffff };
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
-          let material = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ?
-            new THREE.MeshStandardMaterial({
-              color: 0xffffff,
-              map: texture,
-              displacementMap: displacement,
-              displacementScale: size * 0.025
-            }) :
-            new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
+          let material;
+          if(planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
+              material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: size * 0.025 });
+          } else {
+              material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
+          }
           
+          let mesh;
           if(planetData.name==="Terra" || planetData.name==="Nope") {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
-            let mesh = new THREE.Mesh(geometry, material);
+            mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             tiltGroup.add(mesh);
-            // Atualiza o eixo de "Nope": para Nope, compensamos 90° no Z e ajustamos o Y com base no ângulo orbital.
-            if(planetData.name==="Nope") {
-              tiltGroup.rotation.z = deg2rad(planetData.axialTilt - 90);
-            } else {
-              tiltGroup.rotation.z = deg2rad(planetData.axialTilt);
-            }
+            tiltGroup.rotation.z = deg2rad(planetData.axialTilt || 45);
             scene.add(pivot);
             planetData.pivot = pivot;
             planetData.tiltGroup = tiltGroup;
             planetData.mesh = mesh;
-            if(planetData.name==="Nope") { nopeMesh = pivot; }
-            if(planetData.name==="Terra") { earthMesh = pivot; }
           } else {
-            let mesh = new THREE.Mesh(geometry, material);
+            mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          planets.push(planetData);
           
-          let orbitPoints = (function(planet, numPoints=200) {
+          // Cria a linha da órbita
+          let orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                 Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
-            for(let j = 0; j <= numPoints; j++){
-              let f = 2 * Math.PI * j / numPoints;
-              let r = a * (1 - e * e) / (1 + e * Math.cos(f));
-              let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
-              let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
-              let Z = r * (Math.sin(ω + f) * Math.sin(i));
+            for(let j=0; j<=numPoints; j++){
+              let f = 2*Math.PI*j/numPoints;
+              let r = a*(1-e*e)/(1+e*Math.cos(f));
+              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r*(Math.sin(ω+f)*Math.sin(i));
               let scale = 50;
-              pts.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
+              pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
             }
             return pts;
           })(planetData);
@@ -462,101 +296,280 @@
           let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
           let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
           scene.add(orbitLine);
+          planetData.orbitLine = orbitLine;
+          
+          planets.push(planetData);
+        }
+        
+        // Cria os planetas iniciais
+        planetsData.forEach(pd => createPlanet(pd));
+        
+        // =============================
+        // Funções para Luas
+        // =============================
+        // Para cada planeta que tiver uma lua definida, criamos um grupo de órbita e o mesh da lua.
+        // Inicialmente definimos uma lua para Terra e para Nope, mas pode ser adicionada via UI.
+        function createMoon(planet, moonData) {
+          let orbitGroup = new THREE.Group();
+          scene.add(orbitGroup);
+          let moonSize = moonData.size || (planet.size/4);
+          let geometry = new THREE.SphereGeometry(moonSize, 160, 160);
+          let texData = textureMap[moonData.name] || { texture: "default-moon-texture.jpg", displacement:"default-moon-displacement.jpg" };
+          let texture = textureLoader.load(texData.texture);
+          let displacement = textureLoader.load(texData.displacement);
+          let material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              map: texture,
+              displacementMap: displacement,
+              displacementScale: moonSize * 0.025,
+              emissive: 0x444444,
+              emissiveIntensity: 1
+          });
+          let mesh = new THREE.Mesh(geometry, material);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          // Posição inicial da lua com base na distância definida
+          mesh.position.set(moonData.distance || (planet.size + moonSize + 2), 0, 0);
+          orbitGroup.add(mesh);
+          moonData.orbitGroup = orbitGroup;
+          moonData.mesh = mesh;
+          if(!planet.moons) planet.moons = [];
+          planet.moons.push(moonData);
+        }
+        
+        // Lua da Terra (exemplo)
+        let terra = planetsData.find(p => p.name==="Terra");
+        if(terra) {
+          createMoon(terra, { name:"Lua da Terra", period:10, distance:8, size: terra.size/4 });
+        }
+        // Lua de Nope (exemplo)
+        let nope = planetsData.find(p => p.name==="Nope");
+        if(nope) {
+          createMoon(nope, { name:"Lua de Nope", period:0.25, distance:4.5, size: nope.size/16 });
+        }
+        
+        // =============================
+        // Interface de Configuração (Planetas e Luas)
+        // =============================
+        const planetsConfigDiv = document.getElementById("planetsConfig");
+        const moonsConfigDiv = document.getElementById("moonsConfig");
+        
+        function updatePlanetsConfigUI() {
+          planetsConfigDiv.innerHTML = "";
+          planets.forEach((planet, index) => {
+            let fieldset = document.createElement("fieldset");
+            let legend = document.createElement("legend");
+            legend.textContent = planet.name;
+            fieldset.appendChild(legend);
+            // Lista de parâmetros básicos editáveis: a, e, i, Ω, ω, M0, period, rotationPeriod, axialTilt, size
+            const params = ["a","e","i","Ω","ω","M0","period","rotationPeriod","axialTilt","size"];
+            params.forEach(param => {
+              let label = document.createElement("label");
+              label.textContent = param + ": ";
+              let input = document.createElement("input");
+              input.type = "number";
+              input.step = "any";
+              input.value = planet[param] || 0;
+              input.addEventListener("change", function(){
+                planet[param] = parseFloat(this.value);
+                // Se alterar os parâmetros orbitais, recriaremos a órbita
+                if(["a","e","i","Ω","ω"].includes(param)) {
+                  scene.remove(planet.orbitLine);
+                  let orbitPoints = (function(planet, numPoints=200){
+                    let pts = [];
+                    let a = planet.a, e = planet.e, i = deg2rad(planet.i),
+                        Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
+                    for(let j=0; j<=numPoints; j++){
+                      let f = 2*Math.PI*j/numPoints;
+                      let r = a*(1-e*e)/(1+e*Math.cos(f));
+                      let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+                      let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+                      let Z = r*(Math.sin(ω+f)*Math.sin(i));
+                      let scale = 50;
+                      pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+                    }
+                    return pts;
+                  })(planet);
+                  let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+                  let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+                  let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
+                  scene.add(orbitLine);
+                  planet.orbitLine = orbitLine;
+                }
+              });
+              fieldset.appendChild(label);
+              fieldset.appendChild(input);
+              fieldset.appendChild(document.createElement("br"));
+            });
+            planetsConfigDiv.appendChild(fieldset);
+          });
+        }
+        
+        function updateMoonsConfigUI() {
+          moonsConfigDiv.innerHTML = "";
+          // Percorre todos os planetas que possuem luas
+          planets.forEach((planet, pIndex) => {
+            if(planet.moons && planet.moons.length) {
+              planet.moons.forEach((moon, mIndex) => {
+                let fieldset = document.createElement("fieldset");
+                let legend = document.createElement("legend");
+                legend.textContent = planet.name + " – " + moon.name;
+                fieldset.appendChild(legend);
+                // Parâmetros editáveis: period, distance, size
+                const params = ["period","distance","size"];
+                params.forEach(param => {
+                  let label = document.createElement("label");
+                  label.textContent = param + ": ";
+                  let input = document.createElement("input");
+                  input.type = "number";
+                  input.step = "any";
+                  input.value = moon[param] || 0;
+                  input.addEventListener("change", function(){
+                    moon[param] = parseFloat(this.value);
+                  });
+                  fieldset.appendChild(label);
+                  fieldset.appendChild(input);
+                  fieldset.appendChild(document.createElement("br"));
+                });
+                moonsConfigDiv.appendChild(fieldset);
+              });
+            }
+          });
+        }
+        
+        // Chamamos estas funções para construir a UI de configuração
+        updatePlanetsConfigUI();
+        updateMoonsConfigUI();
+        
+        // Botões para adicionar novos planetas e luas
+        document.getElementById("addPlanet").addEventListener("click", function(){
+          let newPlanet = {
+            name: "NovoPlaneta",
+            a: 2,
+            e: 0.1,
+            i: 5,
+            Ω: 0,
+            ω: 0,
+            M0: 0,
+            period: 500,
+            rotationPeriod: 24,
+            axialTilt: 23,
+            size: 3
+          };
+          createPlanet(newPlanet);
+          updatePlanetsConfigUI();
+        });
+        document.getElementById("addMoon").addEventListener("click", function(){
+          // Adiciona uma nova lua ao primeiro planeta (por exemplo)
+          if(planets.length) {
+            let planet = planets[0];
+            let newMoon = {
+              name: "NovaLua",
+              period: 5,
+              distance: planet.size + 3,
+              size: planet.size/4
+            };
+            createMoon(planet, newMoon);
+            updateMoonsConfigUI();
+          }
         });
         
-        // Criação da Lua da Terra (mantida)
-        let earthMoonOrbitGroup = new THREE.Group();
-        scene.add(earthMoonOrbitGroup);
-        let earthMoonSize = (earthMesh.children[0].children[0].geometry.parameters.radius) / 4;
-        let earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
-        let earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
-        let earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
-        let earthMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: earthMoonTexture,
-          displacementMap: earthMoonDisplacement,
-          displacementScale: earthMoonSize * 0.025,
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        let earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-        earthMoonMesh.castShadow = true;
-        earthMoonMesh.receiveShadow = true;
-        earthMoonMesh.position.set(8, 0, 0);
-        earthMoonOrbitGroup.add(earthMoonMesh);
-        
-        // Criação da Lua de Nope – com valores do painel
-        let nopeMoonOrbitGroup = new THREE.Group();
-        scene.add(nopeMoonOrbitGroup);
-        let nopeMoonSize = parseFloat(nopeMoon_sizeInput.value);
-        let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
-        let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
-        let nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
-        let nopeMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: nopeMoonTexture,
-          displacementMap: nopeMoonDisplacement,
-          displacementScale: parseFloat(nopeMoon_dispScaleInput.value),
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
-        nopeMoonMesh.castShadow = true;
-        nopeMoonMesh.receiveShadow = true;
-        nopeMoonMesh.position.set(parseFloat(nopeMoon_distanceInput.value), 0, 0);
-        nopeMoonOrbitGroup.add(nopeMoonMesh);
-        
-        // Camada de nuvens para "Nope"
-        let nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
-        let nopeCloudsTexture = textureLoader.load("nope-clouds.png");
-        let nopeCloudsMaterial = new THREE.MeshStandardMaterial({
-          map: nopeCloudsTexture,
-          transparent: true,
-          opacity: 0.8,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        });
-        let nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
-        nopeCloudsMesh.receiveShadow = true;
-        let nopeCloudsGroup = new THREE.Group();
-        nopeCloudsGroup.add(nopeCloudsMesh);
-        scene.add(nopeCloudsGroup);
-        
-        // Atualização do target dos controles
+        // =============================
+        // Novo cálculo do target da câmera
+        // =============================
         function updateControlsTarget() {
-          let D = new THREE.Vector3().subVectors(nopeMesh.position, sun.position).normalize();
+          let D = new THREE.Vector3().subVectors(nopeMeshPosition(), sun.position).normalize();
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
           let projLength = camOffset.dot(D);
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
           let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
           let L = vector2.length();
           let t;
-          if(L > 200) t = 0;
-          else if(L < 50) t = 1;
-          else t = (200 - L) / 150;
-          let target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
+          if(L > 200) { t = 0; }
+          else if(L < 50) { t = 1; }
+          else { t = (200 - L) / 150; }
+          let target = new THREE.Vector3().lerpVectors(sun.position, nopeMeshPosition(), t);
           controls.target.copy(target);
+          zoomValue.textContent = "vector2 length: " + L.toFixed(2) + " | t: " + t.toFixed(2);
+        }
+        // Função para obter a posição de "Nope" (caso exista)
+        function nopeMeshPosition() {
+          let nopePlanet = planets.find(p => p.name==="Nope");
+          if(nopePlanet && (nopePlanet.pivot || nopePlanet.mesh))
+            return nopePlanet.pivot ? nopePlanet.pivot.position : nopePlanet.mesh.position;
+          return new THREE.Vector3();
         }
         
-        // Função para atualizar o relatório comparativo
-        function updateReport() {
-          document.getElementById('report_nope_a').textContent = parseFloat(nope_aInput.value).toFixed(2);
-          document.getElementById('report_nope_e').textContent = parseFloat(nope_eInput.value).toFixed(4);
-          document.getElementById('report_nope_year').textContent = parseFloat(nope_periodInput.value).toFixed(2);
-          document.getElementById('report_nope_day').textContent = parseFloat(nope_rotationPeriodInput.value).toFixed(2);
-          document.getElementById('report_nope_axialTilt').textContent = parseFloat(nope_axialTiltInput.value).toFixed(2);
-        }
-        
+        // =============================
         // Loop de Animação
+        // =============================
         let lastFrameTime = performance.now();
         function animate() {
           requestAnimationFrame(animate);
           let now = performance.now();
-          let dt = (now - lastFrameTime) / 1000;
+          let dt = (now - lastFrameTime)/1000;
           lastFrameTime = now;
           
-          // Atualiza simulação de tempo e data
-          let minSpeedFactor = 365.256 / 3600;
-          let maxSpeedFactor = 100 * 365.256 / 3600;
-          let speedFactor = minSpeedFactor + ((speedSetting - 1) / 9) * (maxSpeedFactor - minSpeedFactor);
-          simulationTime += 
+          let minSpeedFactor = 365.256/3600;
+          let maxSpeedFactor = 100 * 365.256/3600;
+          let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
+          simulationTime += dt * speedFactor;
+          let simDate = new Date(refDate.getTime() + simulationTime*86400000);
+          currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
+          
+          // Atualiza posição e rotação dos planetas com base nos parâmetros editados
+          planets.forEach(planet => {
+            let pos = (function(planet, time) {
+              let a = planet.a, e = planet.e, i = deg2rad(planet.i),
+                  Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
+                  period = planet.period;
+              let n = 2*Math.PI/period;
+              let M = (M0 + n*time) % (2*Math.PI);
+              let E = solveKepler(M, e);
+              let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+              let r = a*(1 - e*Math.cos(E));
+              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r*(Math.sin(ω+f)*Math.sin(i));
+              let scale = 50;
+              return new THREE.Vector3(X*scale, Z*scale, Y*scale);
+            })(planet, simulationTime);
+            if(planet.pivot) {
+              planet.pivot.position.copy(pos);
+            } else {
+              planet.mesh.position.copy(pos);
+            }
+          });
+          planets.forEach(planet => {
+            if(planet.rotationPeriod) {
+              let rotationPeriodDays = planet.rotationPeriod/24;
+              let angle = simulationTime * (2*Math.PI/rotationPeriodDays);
+              if(planet.pivot && planet.tiltGroup) {
+                planet.tiltGroup.rotation.y = angle;
+              } else {
+                planet.mesh.rotation.y = angle;
+              }
+            }
+          });
+          
+          // Atualiza posições das luas (para cada planeta que possua luas)
+          planets.forEach(planet => {
+            if(planet.moons) {
+              planet.moons.forEach(moon => {
+                // Movimento orbital simples da lua com base no período definido
+                let moonAngle = (simulationTime * 2*Math.PI / moon.period) % (2*Math.PI);
+                if(moon.orbitGroup)
+                  moon.orbitGroup.rotation.y = moonAngle;
+              });
+            }
+          });
+          
+          updateControlsTarget();
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+      })();
+    </script>
+  </body>
+</html>
