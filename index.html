@@ -2,132 +2,164 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.7 – Configuração de translação/rotação e parâmetros customizados</title>
+    <title>Nope v1.8 – Configuração dinâmica com menu toggle</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
-      #ui {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.8);
-        padding: 10px;
-        border-radius: 5px;
-        max-height: 90vh;
-        overflow-y: auto;
+      
+      /* Botão para abrir/fechar o menu */
+      #menuToggle {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: #333;
+        border: none;
+        color: white;
+        font-size: 18px;
+        padding: 8px 12px;
+        cursor: pointer;
+        z-index: 300;
+        border-radius: 4px;
       }
-      #ui h3 { margin-bottom: 5px; }
-      .config-group { margin-bottom: 8px; }
-      .config-group label { display: block; font-size: 14px; }
-      .config-group input { width: 100%; font-size: 14px; padding: 2px; }
-      .config-group small { font-size: 12px; color: #ccc; }
-      /* Botões e controles já existentes */
-      #speedControls { margin-bottom: 10px; }
-      #speedControls button { width: 60px; height: 60px; font-size: 24px; }
+      
+      /* Menu de configuração (sidebar) */
+      #menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 300px;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 200;
+        padding: 20px;
+      }
+      #menu.open { transform: translateX(0); }
+      
+      #menu h3 { margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+      .config-group { margin-bottom: 12px; }
+      .config-group label { display: block; font-size: 14px; margin-bottom: 3px; }
+      .config-group input { width: 100%; font-size: 14px; padding: 4px; border-radius: 4px; border: 1px solid #555; background: #222; color: white; }
+      .config-group small { font-size: 12px; color: #aaa; }
+      
+      /* Controles de simulação (velocidade e data) integrados ao menu */
+      #simControls { margin-bottom: 20px; }
+      #simControls label { font-size: 14px; }
+      #simControls input[type="range"] { width: 100%; }
+      #simControls button { width: 60px; height: 60px; font-size: 24px; margin-top: 8px; }
+      
+      /* Botão para fechar o menu */
+      #closeMenu {
+        background: #444;
+        border: none;
+        color: white;
+        font-size: 14px;
+        padding: 4px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-bottom: 15px;
+      }
     </style>
   </head>
   <body>
-    <!-- Painel de Interface de Controle -->
-    <div id="ui">
-      <!-- Controles de Simulação (Velocidade e Data) -->
-      <div id="speedControls">
-        <div>
+    <!-- Botão de toggle para abrir/fechar o menu -->
+    <button id="menuToggle">Configurações</button>
+    
+    <!-- Menu de Configuração -->
+    <div id="menu">
+      <button id="closeMenu">Fechar</button>
+      <div id="simControls">
+        <h3>Simulação</h3>
+        <div class="config-group">
           <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label>
           <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
         </div>
-        <div style="margin-top:8px;">
-          <button id="speedDown">–</button>
-          <button id="speedUp">+</button>
-        </div>
-        <div style="margin-top:8px;">
+        <div class="config-group">
           <label for="dateInput">Data:</label>
           <input type="date" id="dateInput">
         </div>
-        <div style="margin-top:8px;">
+        <div class="config-group">
           <span id="currentDate"></span>
         </div>
       </div>
-
-      <!-- Painel de Configuração de "Nope" -->
-      <div id="configPanel">
-        <h3>Configuração de Nope</h3>
-        <div class="config-group">
-          <label for="nope_a">Semi-eixo maior (a):</label>
-          <input type="number" id="nope_a" value="1.59" step="0.01">
-          <small>(Em UA – Terra = 1.0 UA)</small>
-        </div>
-        <div class="config-group">
-          <label for="nope_e">Excentricidade (e):</label>
-          <input type="number" id="nope_e" value="0.3" step="0.01">
-          <small>(Terra ~ 0.0167)</small>
-        </div>
-        <div class="config-group">
-          <label for="nope_i">Inclinação orbital (i):</label>
-          <input type="number" id="nope_i" value="90" step="1">
-          <small>(Em graus – Terra = 0°)</small>
-        </div>
-        <div class="config-group">
-          <label for="nope_Omega">Longitude do nodo ascendente (Ω):</label>
-          <input type="number" id="nope_Omega" value="0.0" step="0.1">
-        </div>
-        <div class="config-group">
-          <label for="nope_omega">Argumento do periélio (ω):</label>
-          <input type="number" id="nope_omega" value="0.0" step="0.1">
-        </div>
-        <div class="config-group">
-          <label for="nope_M0">Anomalia média inicial (M0):</label>
-          <input type="number" id="nope_M0" value="0.0" step="0.1">
-        </div>
-        <div class="config-group">
-          <label for="nope_period">Período orbital:</label>
-          <input type="number" id="nope_period" value="730" step="1">
-          <small>(Em dias)</small>
-        </div>
-        <div class="config-group">
-          <label for="nope_rotationPeriod">Período de rotação:</label>
-          <input type="number" id="nope_rotationPeriod" value="26" step="0.1">
-          <small>(Em horas)</small>
-        </div>
-        <div class="config-group">
-          <label for="nope_axialTilt">Inclinação axial:</label>
-          <input type="number" id="nope_axialTilt" value="45" step="1">
-          <small>(Em graus – Terra: 23.5°)</small>
-        </div>
-
-        <h3>Configuração da Lua de Nope</h3>
-        <div class="config-group">
-          <label for="nopeMoon_distance">Distância orbital:</label>
-          <input type="number" id="nopeMoon_distance" value="4.5" step="0.1">
-          <small>(Valor exato, relativo ao raio de Nope)</small>
-        </div>
-        <div class="config-group">
-          <label for="nopeMoon_period">Período orbital da Lua:</label>
-          <input type="number" id="nopeMoon_period" value="0.25" step="0.01">
-          <small>(Em dias – 0.25 = 6 horas)</small>
-        </div>
-        <div class="config-group">
-          <label for="nopeMoon_size">Tamanho da Lua:</label>
-          <input type="number" id="nopeMoon_size" value="0.1875" step="0.0001">
-          <small>(Valor exato – 1/16 do raio de Nope, se Nope = 3)</small>
-        </div>
-        <div class="config-group">
-          <label for="nopeMoon_dispScale">Displacement Scale da Lua:</label>
-          <input type="number" id="nopeMoon_dispScale" value="0.0047" step="0.0001">
-        </div>
-        <div class="config-group">
-          <label for="nopeMoon_orbitTilt">Inclinação da órbita da Lua:</label>
-          <input type="number" id="nopeMoon_orbitTilt" value="15" step="1">
-          <small>(Em graus)</small>
-        </div>
+      
+      <h3>Configuração de Nope</h3>
+      <div class="config-group">
+        <label for="nope_a">Semi-eixo maior (a):</label>
+        <input type="number" id="nope_a" value="1.59" step="0.01">
+        <small>(Em UA – Terra = 1.0 UA)</small>
+      </div>
+      <div class="config-group">
+        <label for="nope_e">Excentricidade (e):</label>
+        <input type="number" id="nope_e" value="0.3" step="0.01">
+        <small>(Terra ~ 0.0167)</small>
+      </div>
+      <div class="config-group">
+        <label for="nope_i">Inclinação orbital (i):</label>
+        <input type="number" id="nope_i" value="90" step="1">
+        <small>(Em graus – Terra = 0°)</small>
+      </div>
+      <div class="config-group">
+        <label for="nope_Omega">Longitude do nodo ascendente (Ω):</label>
+        <input type="number" id="nope_Omega" value="0.0" step="0.1">
+      </div>
+      <div class="config-group">
+        <label for="nope_omega">Argumento do periélio (ω):</label>
+        <input type="number" id="nope_omega" value="0.0" step="0.1">
+      </div>
+      <div class="config-group">
+        <label for="nope_M0">Anomalia média inicial (M0):</label>
+        <input type="number" id="nope_M0" value="0.0" step="0.1">
+      </div>
+      <div class="config-group">
+        <label for="nope_period">Período orbital:</label>
+        <input type="number" id="nope_period" value="730" step="1">
+        <small>(Em dias)</small>
+      </div>
+      <div class="config-group">
+        <label for="nope_rotationPeriod">Período de rotação:</label>
+        <input type="number" id="nope_rotationPeriod" value="26" step="0.1">
+        <small>(Em horas)</small>
+      </div>
+      <div class="config-group">
+        <label for="nope_axialTilt">Inclinação axial:</label>
+        <input type="number" id="nope_axialTilt" value="45" step="1">
+        <small>(Em graus – Terra: 23.5°)</small>
+      </div>
+      
+      <h3>Configuração da Lua de Nope</h3>
+      <div class="config-group">
+        <label for="nopeMoon_distance">Distância orbital:</label>
+        <input type="number" id="nopeMoon_distance" value="4.5" step="0.1">
+        <small>(Valor exato, relativo ao raio de Nope)</small>
+      </div>
+      <div class="config-group">
+        <label for="nopeMoon_period">Período orbital da Lua:</label>
+        <input type="number" id="nopeMoon_period" value="0.25" step="0.01">
+        <small>(Em dias – 0.25 = 6 horas)</small>
+      </div>
+      <div class="config-group">
+        <label for="nopeMoon_size">Tamanho da Lua:</label>
+        <input type="number" id="nopeMoon_size" value="0.1875" step="0.0001">
+        <small>(Valor exato – 1/16 do raio de Nope, se Nope = 3)</small>
+      </div>
+      <div class="config-group">
+        <label for="nopeMoon_dispScale">Displacement Scale da Lua:</label>
+        <input type="number" id="nopeMoon_dispScale" value="0.0047" step="0.0001">
+      </div>
+      <div class="config-group">
+        <label for="nopeMoon_orbitTilt">Inclinação da órbita da Lua:</label>
+        <input type="number" id="nopeMoon_orbitTilt" value="15" step="1">
+        <small>(Em graus)</small>
       </div>
     </div>
-
-    <!-- Removido: Painel de Diagnóstico (antes à direita) -->
-
+    
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
+    
     <script>
       (function(){
         // =============================
@@ -160,15 +192,13 @@
         });
         
         // =============================
-        // UI Elements – Controles de Simulação e Configuração
+        // UI – Controles de Simulação e Configuração
         // =============================
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
-        const speedDown = document.getElementById('speedDown');
-        const speedUp = document.getElementById('speedUp');
         const dateInput = document.getElementById('dateInput');
         const currentDateLabel = document.getElementById('currentDate');
-
+        
         // Elementos do painel de configuração de Nope
         const nope_aInput = document.getElementById('nope_a');
         const nope_eInput = document.getElementById('nope_e');
@@ -179,26 +209,16 @@
         const nope_periodInput = document.getElementById('nope_period');
         const nope_rotationPeriodInput = document.getElementById('nope_rotationPeriod');
         const nope_axialTiltInput = document.getElementById('nope_axialTilt');
-
+        
         // Elementos do painel de configuração da Lua de Nope
         const nopeMoon_distanceInput = document.getElementById('nopeMoon_distance');
         const nopeMoon_periodInput = document.getElementById('nopeMoon_period');
         const nopeMoon_sizeInput = document.getElementById('nopeMoon_size');
         const nopeMoon_dispScaleInput = document.getElementById('nopeMoon_dispScale');
         const nopeMoon_orbitTiltInput = document.getElementById('nopeMoon_orbitTilt');
-
+        
         let speedSetting = parseInt(speedRange.value);
         speedValue.textContent = speedSetting;
-        speedDown.addEventListener('click', () => {
-          speedSetting = Math.max(1, speedSetting - 1);
-          speedRange.value = speedSetting;
-          speedValue.textContent = speedSetting;
-        });
-        speedUp.addEventListener('click', () => {
-          speedSetting = Math.min(10, speedSetting + 1);
-          speedRange.value = speedSetting;
-          speedValue.textContent = speedSetting;
-        });
         speedRange.addEventListener('input', function(){
           speedSetting = parseInt(this.value);
           speedValue.textContent = speedSetting;
@@ -262,14 +282,13 @@
         sun.add(sunSurfaceLayer);
         
         // =============================
-        // Dados dos planetas – Atualizamos "Nope" usando os valores do painel
+        // Dados dos planetas – "Nope" é atualizado com valores do painel
         // =============================
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832 },
           { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45 },
           { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6 },
-          // "Nope" terá seus parâmetros atualizados via painel:
           { name:"Nope",    a:parseFloat(nope_aInput.value), e:parseFloat(nope_eInput.value), i:parseFloat(nope_iInput.value),
             Ω:parseFloat(nope_OmegaInput.value), ω:parseFloat(nope_omegaInput.value), M0:parseFloat(nope_M0Input.value),
             period:parseFloat(nope_periodInput.value), rotationPeriod:parseFloat(nope_rotationPeriodInput.value),
@@ -313,7 +332,6 @@
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
-          // Para "Terra", "Marte" e "Nope" usamos displacement com escala reduzida
           let material = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ?
               new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: size * 0.025 }) :
               new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
@@ -326,9 +344,8 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             tiltGroup.add(mesh);
-            // Para "Nope", ajustamos a inclinação compensando a posição orbital
             if(planetData.name==="Nope") {
-              tiltGroup.rotation.z = deg2rad((planetData.axialTilt) - 90);
+              tiltGroup.rotation.z = deg2rad(planetData.axialTilt - 90);
             } else {
               tiltGroup.rotation.z = deg2rad(planetData.axialTilt);
             }
@@ -392,11 +409,10 @@
         earthMoonOrbitGroup.add(earthMoonMesh);
         
         // =============================
-        // Criação da Lua de Nope – parâmetros vindos do painel de configuração
+        // Criação da Lua de Nope – valores do painel
         // =============================
         let nopeMoonOrbitGroup = new THREE.Group();
         scene.add(nopeMoonOrbitGroup);
-        // Calculamos o tamanho da Lua de Nope com base no valor exato informado
         let nopeMoonSize = parseFloat(nopeMoon_sizeInput.value);
         let nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
         let nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
@@ -412,7 +428,6 @@
         let nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
         nopeMoonMesh.castShadow = true;
         nopeMoonMesh.receiveShadow = true;
-        // Posição orbital definida pelo valor exato do painel
         nopeMoonMesh.position.set(parseFloat(nopeMoon_distanceInput.value), 0, 0);
         nopeMoonOrbitGroup.add(nopeMoonMesh);
         
@@ -435,7 +450,7 @@
         scene.add(nopeCloudsGroup);
         
         // =============================
-        // Atualização do target dos controles (baseado na posição do Sol e de Nope)
+        // Atualização do target dos controles
         // =============================
         function updateControlsTarget() {
           let D = new THREE.Vector3().subVectors(nopeMesh.position, sun.position).normalize();
@@ -445,13 +460,9 @@
           let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
           let L = vector2.length();
           let t;
-          if(L > 200) {
-            t = 0;
-          } else if(L < 50) {
-            t = 1;
-          } else {
-            t = (200 - L) / 150;
-          }
+          if(L > 200) { t = 0; } 
+          else if(L < 50) { t = 1; } 
+          else { t = (200 - L) / 150; }
           let target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
           controls.target.copy(target);
         }
@@ -474,8 +485,7 @@
           let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza os parâmetros de "Nope" com base nos valores do painel de configuração
-          // (Isso permite que, em tempo real, se alterem os valores e a simulação os use)
+          // Atualiza os parâmetros de "Nope" com base nos valores do painel
           let updatedNope = planetsData.find(p => p.name==="Nope");
           if(updatedNope) {
             updatedNope.a = parseFloat(nope_aInput.value);
@@ -506,11 +516,8 @@
               let scale = 50;
               return new THREE.Vector3(X*scale, Z*scale, Y*scale);
             })(planet, simulationTime);
-            if(planet.pivot) {
-              planet.pivot.position.copy(pos);
-            } else {
-              planet.mesh.position.copy(pos);
-            }
+            if(planet.pivot) { planet.pivot.position.copy(pos); }
+            else { planet.mesh.position.copy(pos); }
           });
           planets.forEach(planet => {
             if(planet.rotationPeriod) {
@@ -538,7 +545,6 @@
           let nopeMoonPeriod = parseFloat(nopeMoon_periodInput.value);
           let nopeMoonAngle = (simulationTime * 2*Math.PI / nopeMoonPeriod) % (2*Math.PI);
           nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
-          // Atualiza inclinação da órbita da Lua de Nope conforme o valor do painel (convertendo para radianos)
           let tiltIncrement = deg2rad(parseFloat(nopeMoon_orbitTiltInput.value));
           let nopeMoonTilt = (simulationTime/10) * tiltIncrement;
           nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
@@ -549,6 +555,20 @@
           renderer.render(scene, camera);
         }
         animate();
+        
+        // =============================
+        // Lógica para abrir/fechar o menu de configuração
+        // =============================
+        const menu = document.getElementById('menu');
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        
+        menuToggle.addEventListener('click', () => {
+          menu.classList.add('open');
+        });
+        closeMenu.addEventListener('click', () => {
+          menu.classList.remove('open');
+        });
       })();
     </script>
   </body>
