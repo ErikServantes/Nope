@@ -2,49 +2,162 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <title>Nope v1.5 – Configuração Interativa</title>
+    <title>Nope v1.5 – Configuração Dinâmica</title>
     <style>
-      body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
-      #ui {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 10px;
-        border-radius: 5px;
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: #eee;
+        font-family: Arial, sans-serif;
       }
-      #diagnostics {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 8px;
-        border-radius: 5px;
-        font-size: 14px;
+      /* Botão de Configuração – discreto e moderno */
+      #configButton {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        background: rgba(50, 50, 50, 0.8);
+        border-radius: 50%;
+        text-align: center;
+        line-height: 40px;
+        font-size: 22px;
+        cursor: pointer;
+        z-index: 200;
       }
+      #configButton:hover {
+        background: rgba(70, 70, 70, 0.9);
+      }
+      /* Painel de Configuração */
       #configPanel {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 10px;
+        position: fixed;
+        top: 60px;
+        right: 15px;
+        width: 300px;
+        max-height: 80%;
+        background: rgba(20, 20, 20, 0.95);
+        border: 1px solid #444;
         border-radius: 5px;
-        max-height: 400px;
+        padding: 10px;
+        z-index: 200;
         overflow-y: auto;
-        font-size: 12px;
+        display: none;
       }
-      input, label, button { font-size: 14px; margin:2px 0; }
-      #ui button { width: 60px; height: 60px; font-size: 24px; }
-      fieldset { border: 1px solid #555; margin-bottom: 8px; padding: 5px; }
-      legend { font-size: 14px; }
+      #configPanel header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #configPanel header h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      #configPanel header button {
+        background: none;
+        border: none;
+        color: #eee;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      /* Separadores (Tabs) para os planetas */
+      #planetTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin-bottom: 8px;
+      }
+      #planetTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 6px 10px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 14px;
+        border-bottom: 2px solid transparent;
+      }
+      #planetTabs button.active {
+        color: #fff;
+        border-color: #00aced;
+      }
+      /* Conteúdo de cada separador */
+      .planetContent {
+        display: none;
+      }
+      .planetContent.active {
+        display: block;
+      }
+      .configField {
+        margin-bottom: 8px;
+      }
+      .configField label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      .configField input {
+        width: 100%;
+        padding: 4px;
+        font-size: 13px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #222;
+        color: #eee;
+      }
+      /* Separadores para as Luas (sub-tabs) */
+      .moonTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin: 8px 0;
+      }
+      .moonTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 12px;
+        border-bottom: 2px solid transparent;
+      }
+      .moonTabs button.active {
+        color: #fff;
+        border-color: #f39c12;
+      }
+      .moonContent {
+        display: none;
+      }
+      .moonContent.active {
+        display: block;
+      }
+      .sectionTitle {
+        font-size: 14px;
+        margin: 8px 0 4px;
+        border-bottom: 1px solid #555;
+        padding-bottom: 2px;
+      }
     </style>
   </head>
   <body>
-    <!-- Interface de Controlo Principal -->
-    <div id="ui">
+    <!-- Botão para abrir o menu de configuração -->
+    <div id="configButton">⚙️</div>
+    <!-- Painel de Configuração (inicialmente oculto) -->
+    <div id="configPanel">
+      <header>
+        <h3>Configuração do Sistema</h3>
+        <button id="closeConfig">X</button>
+      </header>
+      <!-- Separadores para os Planetas -->
+      <div id="planetTabs"></div>
+      <!-- Conteúdo para o planeta selecionado -->
+      <div id="planetContents"></div>
+    </div>
+
+    <!-- Interface de Controlo Principal (data, velocidade, etc.) -->
+    <div id="ui" style="position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.7); padding:10px; border-radius:5px;">
       <div>
         <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
         <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
@@ -61,24 +174,13 @@
         <span id="currentDate"></span>
       </div>
       <div style="margin-top:8px; font-size:12px;">
-        (Use mouse ou toque para orbitar, dar zoom e pan)
+        (Utilize o rato ou toque para orbitar, dar zoom e pan)
       </div>
     </div>
 
-    <!-- Diagnóstico -->
-    <div id="diagnostics">
+    <!-- Diagnóstico: Zoom -->
+    <div id="diagnostics" style="position: absolute; top: 10px; right: 10px; z-index: 100; background: rgba(0,0,0,0.7); padding:8px; border-radius:5px; font-size:14px;">
       Zoom: <span id="zoomValue">0</span> units
-    </div>
-
-    <!-- Painel de Configuração de Parâmetros -->
-    <div id="configPanel">
-      <h3>Configuração de Planetas</h3>
-      <div id="planetsConfig"></div>
-      <button id="addPlanet">Adicionar Planeta</button>
-      <hr>
-      <h3>Configuração de Luas</h3>
-      <div id="moonsConfig"></div>
-      <button id="addMoon">Adicionar Lua</button>
     </div>
 
     <!-- Three.js e OrbitControls via CDN -->
@@ -116,7 +218,7 @@
         });
         
         // =============================
-        // UI Elements Principais
+        // Elementos da UI Principal
         // =============================
         const speedRange = document.getElementById('speedRange');
         const speedValue = document.getElementById('speedValue');
@@ -168,7 +270,7 @@
         }
         
         // =============================
-        // Criação do Sol e sua luz
+        // Criação do Sol e iluminação
         // =============================
         let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
@@ -203,59 +305,64 @@
         sun.add(sunSurfaceLayer);
         
         // =============================
-        // Dados e Função de Criação dos Planetas
+        // Dados dos planetas – parâmetros básicos editáveis
         // =============================
-        // Parâmetros básicos dos planetas – estes serão editáveis na interface de configuração.
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, axialTilt:0 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, axialTilt:177 },
+          { name:"Vénus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, axialTilt:177 },
           { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000,  ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:23.5 },
           { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373,  period:686.980, rotationPeriod:24.6, axialTilt:25 },
           { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,    M0:0.0,     period:730, rotationPeriod:26, axialTilt:45 },
           { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, axialTilt:3 }
-          // Outros planetas podem ser adicionados aqui.
+          // Outros planetas poderão ser adicionados
         ];
         
-        // Mapeamento de texturas – se um novo planeta for adicionado, poderá ser utilizada uma textura default.
+        // Mapeamento de texturas – caso um novo planeta seja adicionado, usa-se textura por defeito se necessário.
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
-          "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
+          "Vénus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
           "Terra":   { texture:"earth-texture.jpg", displacement:"earth-displacement.jpg", fallbackColor:0xffffff },
           "Marte":   { texture:"mars-texture.jpg", displacement:"mars-displacement.jpg", fallbackColor:0xffffff },
           "Nope":    { texture:"nope-texture.jpg", displacement:"nope-displacement.jpg", fallbackColor:0xffffff },
           "Júpiter": { texture:"jupiter-texture.jpg", displacement:"jupiter-displacement.jpg", fallbackColor:0xffffff }
         };
         
-        let planets = []; // Array que guardará os planetas já criados.
+        let planets = []; // Array para armazenar os planetas criados
         
-        // Função para criar o planeta e sua órbita com base no objeto planetData.
-        function createPlanet(planetData) {
-          let size;
-          // Define o tamanho (pode ser alterado via interface)
+        // =============================
+        // Função de criação de planeta e respetiva órbita
+        // =============================
+        function criarPlaneta(planetData) {
+          let tamanho;
           switch(planetData.name) {
-            case "Mercúrio": size = 2.5; break;
-            case "Vênus":   size = 3; break;
-            case "Terra":   size = 3.5; break;
-            case "Marte":   size = 3; break;
-            case "Nope":    size = 3; break;
-            case "Júpiter": size = 7; break;
-            default:        size = planetData.size || 3;
+            case "Mercúrio": tamanho = 2.5; break;
+            case "Vénus":   tamanho = 3; break;
+            case "Terra":   tamanho = 3.5; break;
+            case "Marte":   tamanho = 3; break;
+            case "Nope":    tamanho = 3; break;
+            case "Júpiter": tamanho = 7; break;
+            default:        tamanho = planetData.tamanho || 3;
           }
-          planetData.size = size;
-          let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16;
-          let geometry = new THREE.SphereGeometry(size, segments, segments);
+          planetData.tamanho = tamanho;
+          let segmentos = (["Terra","Marte","Nope"].includes(planetData.name)) ? 320 : 16;
+          let geometry = new THREE.SphereGeometry(tamanho, segmentos, segmentos);
           let texData = textureMap[planetData.name] || { texture:"default-texture.jpg", displacement:"default-displacement.jpg", fallbackColor:0xffffff };
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
           let material;
-          if(planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
-              material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: size * 0.025 });
+          if(["Terra","Marte","Nope"].includes(planetData.name)) {
+              material = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                map: texture,
+                displacementMap: displacement,
+                displacementScale: tamanho * 0.025
+              });
           } else {
               material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
           
           let mesh;
-          if(planetData.name==="Terra" || planetData.name==="Nope") {
+          if(["Terra","Nope"].includes(planetData.name)) {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -276,8 +383,8 @@
             planetData.mesh = mesh;
           }
           
-          // Cria a linha da órbita
-          let orbitPoints = (function(planet, numPoints=200){
+          // Criação da linha de órbita
+          let pontosOrbita = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                 Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
@@ -287,95 +394,116 @@
               let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Z = r*(Math.sin(ω+f)*Math.sin(i));
-              let scale = 50;
-              pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+              let escala = 50;
+              pts.push(new THREE.Vector3(X*escala, Z*escala, Y*escala));
             }
             return pts;
           })(planetData);
-          let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+          let orbitGeometry = new THREE.BufferGeometry().setFromPoints(pontosOrbita);
           let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
-          let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-          scene.add(orbitLine);
-          planetData.orbitLine = orbitLine;
+          let linhaOrbita = new THREE.LineLoop(orbitGeometry, orbitMaterial);
+          scene.add(linhaOrbita);
+          planetData.linhaOrbita = linhaOrbita;
           
           planets.push(planetData);
         }
         
-        // Cria os planetas iniciais
-        planetsData.forEach(pd => createPlanet(pd));
+        // Criação dos planetas iniciais
+        planetsData.forEach(pd => { criarPlaneta(pd); });
         
         // =============================
-        // Funções para Luas
+        // Função de criação de Lua para um planeta
         // =============================
-        // Para cada planeta que tiver uma lua definida, criamos um grupo de órbita e o mesh da lua.
-        // Inicialmente definimos uma lua para Terra e para Nope, mas pode ser adicionada via UI.
-        function createMoon(planet, moonData) {
-          let orbitGroup = new THREE.Group();
-          scene.add(orbitGroup);
-          let moonSize = moonData.size || (planet.size/4);
-          let geometry = new THREE.SphereGeometry(moonSize, 160, 160);
-          let texData = textureMap[moonData.name] || { texture: "default-moon-texture.jpg", displacement:"default-moon-displacement.jpg" };
+        function criarLua(planeta, luaData) {
+          let grupoOrbita = new THREE.Group();
+          scene.add(grupoOrbita);
+          let tamanhoLua = luaData.tamanho || (planeta.tamanho/4);
+          let geometry = new THREE.SphereGeometry(tamanhoLua, 160, 160);
+          let texData = textureMap[luaData.name] || { texture: "default-moon-texture.jpg", displacement:"default-moon-displacement.jpg" };
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
           let material = new THREE.MeshStandardMaterial({
               color: 0xffffff,
               map: texture,
               displacementMap: displacement,
-              displacementScale: moonSize * 0.025,
+              displacementScale: tamanhoLua * 0.025,
               emissive: 0x444444,
               emissiveIntensity: 1
           });
           let mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          // Posição inicial da lua com base na distância definida
-          mesh.position.set(moonData.distance || (planet.size + moonSize + 2), 0, 0);
-          orbitGroup.add(mesh);
-          moonData.orbitGroup = orbitGroup;
-          moonData.mesh = mesh;
-          if(!planet.moons) planet.moons = [];
-          planet.moons.push(moonData);
+          mesh.position.set(luaData.distancia || (planeta.tamanho + tamanhoLua + 2), 0, 0);
+          grupoOrbita.add(mesh);
+          luaData.grupoOrbita = grupoOrbita;
+          luaData.mesh = mesh;
+          if(!planeta.luas) planeta.luas = [];
+          planeta.luas.push(luaData);
         }
         
-        // Lua da Terra (exemplo)
+        // Criar exemplo de lua para a Terra
         let terra = planetsData.find(p => p.name==="Terra");
         if(terra) {
-          createMoon(terra, { name:"Lua da Terra", period:10, distance:8, size: terra.size/4 });
+          criarLua(terra, { name:"Lua da Terra", period:10, distancia:8, tamanho: terra.tamanho/4 });
         }
-        // Lua de Nope (exemplo)
+        // Criar exemplo de lua para Nope
         let nope = planetsData.find(p => p.name==="Nope");
         if(nope) {
-          createMoon(nope, { name:"Lua de Nope", period:0.25, distance:4.5, size: nope.size/16 });
+          criarLua(nope, { name:"Lua de Nope", period:0.25, distancia:4.5, tamanho: nope.tamanho/16 });
         }
         
         // =============================
-        // Interface de Configuração (Planetas e Luas)
+        // Menu de Configuração – UI com separadores (tabs)
         // =============================
-        const planetsConfigDiv = document.getElementById("planetsConfig");
-        const moonsConfigDiv = document.getElementById("moonsConfig");
+        const configButton = document.getElementById("configButton");
+        const configPanel = document.getElementById("configPanel");
+        const closeConfig = document.getElementById("closeConfig");
+        const planetTabsDiv = document.getElementById("planetTabs");
+        const planetContentsDiv = document.getElementById("planetContents");
         
-        function updatePlanetsConfigUI() {
-          planetsConfigDiv.innerHTML = "";
-          planets.forEach((planet, index) => {
-            let fieldset = document.createElement("fieldset");
-            let legend = document.createElement("legend");
-            legend.textContent = planet.name;
-            fieldset.appendChild(legend);
-            // Lista de parâmetros básicos editáveis: a, e, i, Ω, ω, M0, period, rotationPeriod, axialTilt, size
-            const params = ["a","e","i","Ω","ω","M0","period","rotationPeriod","axialTilt","size"];
-            params.forEach(param => {
-              let label = document.createElement("label");
-              label.textContent = param + ": ";
+        // Função para atualizar os separadores de planetas
+        function atualizarTabsPlanetas() {
+          planetTabsDiv.innerHTML = "";
+          planetContentsDiv.innerHTML = "";
+          planets.forEach((planeta, index) => {
+            // Cria o botão da tab
+            let btnTab = document.createElement("button");
+            btnTab.textContent = planeta.name;
+            btnTab.addEventListener("click", () => { selecionarTabPlaneta(index); });
+            planetTabsDiv.appendChild(btnTab);
+            
+            // Cria o conteúdo para o planeta
+            let divContent = document.createElement("div");
+            divContent.classList.add("planetContent");
+            divContent.dataset.index = index;
+            // Campos editáveis – usando termos explicativos
+            let campos = [
+              { key:"a", label:"Distância Média (UA)" },
+              { key:"e", label:"Excentricidade" },
+              { key:"i", label:"Inclinação Orbital (graus)" },
+              { key:"Ω", label:"Longitude do Nodo Ascendente (graus)" },
+              { key:"ω", label:"Argumento do Periélio (graus)" },
+              { key:"M0", label:"Anomalia Inicial (graus)" },
+              { key:"period", label:"Período Orbital (dias terrestres)" },
+              { key:"rotationPeriod", label:"Período de Rotação (horas)" },
+              { key:"axialTilt", label:"Inclinação do Eixo (graus)" },
+              { key:"tamanho", label:"Tamanho (escala)" }
+            ];
+            campos.forEach(campo => {
+              let divCampo = document.createElement("div");
+              divCampo.classList.add("configField");
+              let lbl = document.createElement("label");
+              lbl.textContent = campo.label;
               let input = document.createElement("input");
               input.type = "number";
               input.step = "any";
-              input.value = planet[param] || 0;
+              input.value = planeta[campo.key] || 0;
               input.addEventListener("change", function(){
-                planet[param] = parseFloat(this.value);
-                // Se alterar os parâmetros orbitais, recriaremos a órbita
-                if(["a","e","i","Ω","ω"].includes(param)) {
-                  scene.remove(planet.orbitLine);
-                  let orbitPoints = (function(planet, numPoints=200){
+                planeta[campo.key] = parseFloat(this.value);
+                // Se forem parâmetros orbitais, atualizar a linha de órbita
+                if(["a","e","i","Ω","ω"].includes(campo.key)) {
+                  scene.remove(planeta.linhaOrbita);
+                  let pts = (function(planet, numPoints=200){
                     let pts = [];
                     let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                         Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
@@ -385,98 +513,152 @@
                       let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
                       let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
                       let Z = r*(Math.sin(ω+f)*Math.sin(i));
-                      let scale = 50;
-                      pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+                      let escala = 50;
+                      pts.push(new THREE.Vector3(X*escala, Z*escala, Y*escala));
                     }
                     return pts;
-                  })(planet);
-                  let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-                  let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
-                  let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
-                  scene.add(orbitLine);
-                  planet.orbitLine = orbitLine;
+                  })(planeta);
+                  let geo = new THREE.BufferGeometry().setFromPoints(pts);
+                  let mat = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+                  let linha = new THREE.LineLoop(geo, mat);
+                  scene.add(linha);
+                  planeta.linhaOrbita = linha;
                 }
               });
-              fieldset.appendChild(label);
-              fieldset.appendChild(input);
-              fieldset.appendChild(document.createElement("br"));
+              divCampo.appendChild(lbl);
+              divCampo.appendChild(input);
+              divContent.appendChild(divCampo);
             });
-            planetsConfigDiv.appendChild(fieldset);
-          });
-        }
-        
-        function updateMoonsConfigUI() {
-          moonsConfigDiv.innerHTML = "";
-          // Percorre todos os planetas que possuem luas
-          planets.forEach((planet, pIndex) => {
-            if(planet.moons && planet.moons.length) {
-              planet.moons.forEach((moon, mIndex) => {
-                let fieldset = document.createElement("fieldset");
-                let legend = document.createElement("legend");
-                legend.textContent = planet.name + " – " + moon.name;
-                fieldset.appendChild(legend);
-                // Parâmetros editáveis: period, distance, size
-                const params = ["period","distance","size"];
-                params.forEach(param => {
-                  let label = document.createElement("label");
-                  label.textContent = param + ": ";
+            // Se o planeta tiver luas, criar sub-tabs para as mesmas
+            let divLuas = document.createElement("div");
+            divLuas.innerHTML = "<div class='sectionTitle'>Luas</div>";
+            let luaTabs = document.createElement("div");
+            luaTabs.classList.add("moonTabs");
+            let luaContents = document.createElement("div");
+            // Se existirem luas, criar separadores para cada uma
+            if(planeta.luas && planeta.luas.length) {
+              planeta.luas.forEach((lua, li) => {
+                let btnLua = document.createElement("button");
+                btnLua.textContent = lua.name;
+                btnLua.addEventListener("click", () => { selecionarTabLua(divContent, li); });
+                luaTabs.appendChild(btnLua);
+                // Conteúdo da lua
+                let divLuaContent = document.createElement("div");
+                divLuaContent.classList.add("moonContent");
+                let camposLua = [
+                  { key:"period", label:"Período Orbital (dias)" },
+                  { key:"distancia", label:"Distância ao Planeta" },
+                  { key:"tamanho", label:"Tamanho (escala)" }
+                ];
+                camposLua.forEach(campo => {
+                  let divCampo = document.createElement("div");
+                  divCampo.classList.add("configField");
+                  let lbl = document.createElement("label");
+                  lbl.textContent = campo.label;
                   let input = document.createElement("input");
                   input.type = "number";
                   input.step = "any";
-                  input.value = moon[param] || 0;
+                  input.value = lua[campo.key] || 0;
                   input.addEventListener("change", function(){
-                    moon[param] = parseFloat(this.value);
+                    lua[campo.key] = parseFloat(this.value);
                   });
-                  fieldset.appendChild(label);
-                  fieldset.appendChild(input);
-                  fieldset.appendChild(document.createElement("br"));
+                  divCampo.appendChild(lbl);
+                  divCampo.appendChild(input);
+                  divLuaContent.appendChild(divCampo);
                 });
-                moonsConfigDiv.appendChild(fieldset);
+                luaContents.appendChild(divLuaContent);
               });
+            } else {
+              // Se não existir nenhuma lua, mostrar mensagem e botão para adicionar
+              let msg = document.createElement("p");
+              msg.textContent = "Sem luas definidas.";
+              luaContents.appendChild(msg);
             }
+            // Botão para adicionar nova lua
+            let btnAddLua = document.createElement("button");
+            btnAddLua.textContent = "➕ Adicionar Lua";
+            btnAddLua.style.marginTop = "4px";
+            btnAddLua.addEventListener("click", function(){
+              // Adiciona uma nova lua ao planeta
+              let novaLua = { name:"Nova Lua", period:5, distancia: planeta.tamanho+3, tamanho: planeta.tamanho/4 };
+              criarLua(planeta, novaLua);
+              atualizarTabsPlanetas();
+              selecionarTabPlaneta(index);
+            });
+            divLuas.appendChild(luaTabs);
+            divLuas.appendChild(luaContents);
+            divLuas.appendChild(btnAddLua);
+            divContent.appendChild(divLuas);
+            
+            planetContentsDiv.appendChild(divContent);
+          });
+          // Última tab para adicionar novo planeta
+          let btnAddPlaneta = document.createElement("button");
+          btnAddPlaneta.textContent = "➕";
+          btnAddPlaneta.addEventListener("click", function(){
+            let novoPlaneta = {
+              name: "Novo Planeta",
+              a: 2,
+              e: 0.1,
+              i: 5,
+              Ω: 0,
+              ω: 0,
+              M0: 0,
+              period: 500,
+              rotationPeriod: 24,
+              axialTilt: 23,
+              tamanho: 3
+            };
+            criarPlaneta(novoPlaneta);
+            atualizarTabsPlanetas();
+            selecionarTabPlaneta(planets.length-1);
+          });
+          planetTabsDiv.appendChild(btnAddPlaneta);
+          // Selecionar a primeira tab, se existir
+          if(planets.length) selecionarTabPlaneta(0);
+        }
+        
+        // Seleciona a tab do planeta com índice 'index'
+        function selecionarTabPlaneta(index) {
+          // Atualiza os botões da tab
+          Array.from(planetTabsDiv.children).forEach((btn, i) => {
+            if(i < planets.length) btn.classList.toggle("active", i === index);
+          });
+          // Atualiza o conteúdo
+          Array.from(planetContentsDiv.children).forEach((div, i) => {
+            div.classList.toggle("active", i === index);
           });
         }
         
-        // Chamamos estas funções para construir a UI de configuração
-        updatePlanetsConfigUI();
-        updateMoonsConfigUI();
+        // (Função auxiliar para as tabs de luas – se desejar expandir futuramente)
+        function selecionarTabLua(planetContentDiv, index) {
+          let luaTabs = planetContentDiv.querySelectorAll(".moonTabs button");
+          let luaContents = planetContentDiv.querySelectorAll(".moonContent");
+          luaTabs.forEach((btn, i) => { btn.classList.toggle("active", i === index); });
+          luaContents.forEach((div, i) => { div.classList.toggle("active", i === index); });
+        }
         
-        // Botões para adicionar novos planetas e luas
-        document.getElementById("addPlanet").addEventListener("click", function(){
-          let newPlanet = {
-            name: "NovoPlaneta",
-            a: 2,
-            e: 0.1,
-            i: 5,
-            Ω: 0,
-            ω: 0,
-            M0: 0,
-            period: 500,
-            rotationPeriod: 24,
-            axialTilt: 23,
-            size: 3
-          };
-          createPlanet(newPlanet);
-          updatePlanetsConfigUI();
+        atualizarTabsPlanetas();
+        
+        // =============================
+        // Controlo do painel de configuração
+        // =============================
+        configButton.addEventListener("click", () => {
+          configPanel.style.display = configPanel.style.display === "none" ? "block" : "none";
         });
-        document.getElementById("addMoon").addEventListener("click", function(){
-          // Adiciona uma nova lua ao primeiro planeta (por exemplo)
-          if(planets.length) {
-            let planet = planets[0];
-            let newMoon = {
-              name: "NovaLua",
-              period: 5,
-              distance: planet.size + 3,
-              size: planet.size/4
-            };
-            createMoon(planet, newMoon);
-            updateMoonsConfigUI();
-          }
+        closeConfig.addEventListener("click", () => {
+          configPanel.style.display = "none";
         });
         
         // =============================
-        // Novo cálculo do target da câmera
+        // Atualização do target da câmera (baseado na posição de “Nope”, se existir)
         // =============================
+        function nopeMeshPosition() {
+          let nopePlanet = planets.find(p => p.name==="Nope");
+          if(nopePlanet && (nopePlanet.pivot || nopePlanet.mesh))
+            return nopePlanet.pivot ? nopePlanet.pivot.position : nopePlanet.mesh.position;
+          return new THREE.Vector3();
+        }
         function updateControlsTarget() {
           let D = new THREE.Vector3().subVectors(nopeMeshPosition(), sun.position).normalize();
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
@@ -492,16 +674,9 @@
           controls.target.copy(target);
           zoomValue.textContent = "vector2 length: " + L.toFixed(2) + " | t: " + t.toFixed(2);
         }
-        // Função para obter a posição de "Nope" (caso exista)
-        function nopeMeshPosition() {
-          let nopePlanet = planets.find(p => p.name==="Nope");
-          if(nopePlanet && (nopePlanet.pivot || nopePlanet.mesh))
-            return nopePlanet.pivot ? nopePlanet.pivot.position : nopePlanet.mesh.position;
-          return new THREE.Vector3();
-        }
         
         // =============================
-        // Loop de Animação
+        // Loop de animação
         // =============================
         let lastFrameTime = performance.now();
         function animate() {
@@ -517,8 +692,8 @@
           let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Atualiza posição e rotação dos planetas com base nos parâmetros editados
-          planets.forEach(planet => {
+          // Atualiza posição e rotação dos planetas
+          planets.forEach(planeta => {
             let pos = (function(planet, time) {
               let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                   Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
@@ -531,35 +706,34 @@
               let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Z = r*(Math.sin(ω+f)*Math.sin(i));
-              let scale = 50;
-              return new THREE.Vector3(X*scale, Z*scale, Y*scale);
-            })(planet, simulationTime);
-            if(planet.pivot) {
-              planet.pivot.position.copy(pos);
+              let escala = 50;
+              return new THREE.Vector3(X*escala, Z*escala, Y*escala);
+            })(planeta, simulationTime);
+            if(planeta.pivot) {
+              planeta.pivot.position.copy(pos);
             } else {
-              planet.mesh.position.copy(pos);
+              planeta.mesh.position.copy(pos);
             }
           });
-          planets.forEach(planet => {
-            if(planet.rotationPeriod) {
-              let rotationPeriodDays = planet.rotationPeriod/24;
-              let angle = simulationTime * (2*Math.PI/rotationPeriodDays);
-              if(planet.pivot && planet.tiltGroup) {
-                planet.tiltGroup.rotation.y = angle;
+          planets.forEach(planeta => {
+            if(planeta.rotationPeriod) {
+              let rotDias = planeta.rotationPeriod/24;
+              let angle = simulationTime * (2*Math.PI/rotDias);
+              if(planeta.pivot && planeta.tiltGroup) {
+                planeta.tiltGroup.rotation.y = angle;
               } else {
-                planet.mesh.rotation.y = angle;
+                planeta.mesh.rotation.y = angle;
               }
             }
           });
           
-          // Atualiza posições das luas (para cada planeta que possua luas)
-          planets.forEach(planet => {
-            if(planet.moons) {
-              planet.moons.forEach(moon => {
-                // Movimento orbital simples da lua com base no período definido
-                let moonAngle = (simulationTime * 2*Math.PI / moon.period) % (2*Math.PI);
-                if(moon.orbitGroup)
-                  moon.orbitGroup.rotation.y = moonAngle;
+          // Atualiza posições das luas (movimento orbital simples)
+          planets.forEach(planeta => {
+            if(planeta.luas) {
+              planeta.luas.forEach(lua => {
+                let angleLua = (simulationTime * 2*Math.PI / lua.period) % (2*Math.PI);
+                if(lua.grupoOrbita)
+                  lua.grupoOrbita.rotation.y = angleLua;
               });
             }
           });
