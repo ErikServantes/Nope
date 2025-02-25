@@ -149,7 +149,7 @@
         padding: 10px;
         border-radius: 5px;
       }
-      #ui input, #ui span {
+      #ui input {
         font-size: 14px;
       }
       #dateInput {
@@ -163,17 +163,6 @@
       }
       #timeSlider {
         width: 100%;
-      }
-      /* Diagnóstico (Zoom) */
-      #diagnostics {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 100;
-        background: rgba(0,0,0,0.7);
-        padding: 8px;
-        border-radius: 5px;
-        font-size: 14px;
       }
     </style>
   </head>
@@ -194,20 +183,12 @@
 
     <!-- Menu de Controlo à Esquerda -->
     <div id="ui">
-      <!-- Campo para inserção manual da data (valor no formato ISO, mas exibido via label abaixo) -->
+      <!-- Campo para inserção manual da data -->
       <input type="date" id="dateInput">
-      <div style="margin-bottom: 8px;">
-        <span id="currentDate"></span>
-      </div>
-      <!-- Slider para controlo de velocidade temporal (infinito) -->
+      <!-- Slider para controlo temporal (infinito) -->
       <div>
         <input type="range" id="timeSlider" step="1">
       </div>
-    </div>
-
-    <!-- Diagnóstico: Zoom -->
-    <div id="diagnostics">
-      Zoom: <span id="zoomValue">0</span> units
     </div>
 
     <!-- Three.js e OrbitControls via CDN -->
@@ -249,39 +230,35 @@
         // =============================
         const refDate = new Date();  // Data de referência
         let simulationTime = 0;      // Offset em dias relativamente a refDate
-        const baseRate = 1;          // Avanço base: 1 dia por segundo
-        const sliderMultiplier = 0.001; // Fator de sensibilidade do slider
+        const baseRate = 1;          // 1 dia/segundo por padrão
+        const maxSlider = 10000;     // Valor máximo do slider
         let sliderVelocity = 0;
         
-        // Formatação de data: DD-MM-AAAA
-        function formatDate(date) {
-          let dd = String(date.getDate()).padStart(2, '0');
-          let mm = String(date.getMonth()+1).padStart(2, '0');
-          let yyyy = date.getFullYear();
-          return dd + "-" + mm + "-" + yyyy;
-        }
-        // Formatação para o campo de data (YYYY-MM-DD)
-        function formatForInput(date) {
-          let yyyy = date.getFullYear();
-          let mm = String(date.getMonth()+1).padStart(2, '0');
-          let dd = String(date.getDate()).padStart(2, '0');
-          return `${yyyy}-${mm}-${dd}`;
+        // Função para calcular velocidade extra com função quadrática:
+        // Se sliderValue >= 0: extra = 9 * (valor/maxSlider)²; se negativo: extra = -11 * (|valor|/maxSlider)².
+        // Assim, para sliderValue = maxSlider, velocidade = 1 + 9 = 10 dias/segundo,
+        // e para sliderValue = -maxSlider, velocidade = 1 - 11 = -10 dias/segundo.
+        function calcularVelocidadeExtra(valor) {
+          if (valor >= 0) {
+            return baseRate + 9 * Math.pow(valor / maxSlider, 2);
+          } else {
+            return baseRate - 11 * Math.pow(Math.abs(valor) / maxSlider, 2);
+          }
         }
         
         // Elementos do Menu à Esquerda
-        const currentDateLabel = document.getElementById('currentDate');
         const timeSlider = document.getElementById('timeSlider');
         const dateInput = document.getElementById('dateInput');
         // Configura o slider com uma faixa ampla para simular um controlo "infinito"
-        timeSlider.min = -10000;
-        timeSlider.max = 10000;
+        timeSlider.min = -maxSlider;
+        timeSlider.max = maxSlider;
         timeSlider.value = 0;
         
-        // Atualiza o slider: o valor atual representa a velocidade adicional
+        // Atualiza o slider: o valor atual determina a velocidade extra
         timeSlider.addEventListener("input", function() {
           sliderVelocity = parseFloat(this.value);
         });
-        // Ao terminar o arrasto, o slider é reiniciado ao centro
+        // Ao terminar o arrasto, reinicia o slider ao centro
         function resetSlider() {
           timeSlider.value = 0;
           sliderVelocity = 0;
@@ -290,11 +267,27 @@
         timeSlider.addEventListener("touchend", resetSlider);
         
         // Permite inserir manualmente a data – atualiza simulationTime
+        function formatForInput(date) {
+          let yyyy = date.getFullYear();
+          let mm = String(date.getMonth()+1).padStart(2, '0');
+          let dd = String(date.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        }
         dateInput.value = formatForInput(refDate);
         dateInput.addEventListener("change", function(){
           let newDate = new Date(this.value);
-          simulationTime = (newDate - refDate)/86400000;
+          simulationTime = (newDate - refDate) / 86400000;
         });
+        
+        // =============================
+        // Função para formatar a data: DD-MM-AAAA
+        // =============================
+        function formatDate(date) {
+          let dd = String(date.getDate()).padStart(2, '0');
+          let mm = String(date.getMonth()+1).padStart(2, '0');
+          let yyyy = date.getFullYear();
+          return dd + "-" + mm + "-" + yyyy;
+        }
         
         // =============================
         // Funções Auxiliares
@@ -302,8 +295,8 @@
         function deg2rad(deg) { return deg * Math.PI/180; }
         function solveKepler(M, e, tolerance=1e-6) {
           let E = M, delta = 1;
-          while(Math.abs(delta) > tolerance) {
-            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
+          while (Math.abs(delta) > tolerance) {
+            delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
             E = E - delta;
           }
           return E;
@@ -327,7 +320,7 @@
         sunLight.shadow.camera.near = 0.1;
         sunLight.shadow.camera.far = 20000;
         sunLight.shadow.bias = -0.005;
-        sunLight.position.set(0,0,0);
+        sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
         
         let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
@@ -728,27 +721,24 @@
         function updateControlsTarget() {
           let targetPos = getZoomTarget();
           controls.target.lerp(targetPos, 0.05);
-          let diff = new THREE.Vector3().subVectors(camera.position, targetPos).length();
-          document.getElementById("zoomValue").textContent = diff.toFixed(2);
         }
         
         // =============================
-        // Loop de Animação – evolução temporal contínua
+        // Loop de Animação – Evolução Temporal Contínua
         // =============================
         let lastFrameTime = performance.now();
         function animate() {
           requestAnimationFrame(animate);
           let now = performance.now();
-          let dt = (now - lastFrameTime)/1000;
+          let dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Atualiza simulationTime com taxa base e velocidade adicional do slider
-          simulationTime += dt * (baseRate + sliderVelocity * sliderMultiplier);
+          // Calcula a velocidade efetiva a partir do slider (velocidade aumenta quadraticamente ao colar-se nos extremos)
+          let effectiveSpeed = (sliderVelocity == 0) ? baseRate : calcularVelocidadeExtra(sliderVelocity);
+          simulationTime += dt * effectiveSpeed;
           let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           
-          // Atualiza a label da data (formato DD-MM-AAAA)
-          currentDateLabel.textContent = formatDate(simDate);
-          // Atualiza o campo de data, se não estiver focado (formato ISO)
+          // Atualiza o campo de data (formato YYYY-MM-DD)
           if(document.activeElement !== dateInput)
             dateInput.value = formatForInput(simDate);
           
@@ -758,16 +748,16 @@
               let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                   Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
                   period = planet.period;
-              let n = 2*Math.PI/period;
-              let M = (M0 + n*time) % (2*Math.PI);
+              let n = 2 * Math.PI / period;
+              let M = (M0 + n * time) % (2 * Math.PI);
               let E = solveKepler(M, e);
-              let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
-              let r = a*(1 - e*Math.cos(E));
-              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Z = r*(Math.sin(ω+f)*Math.sin(i));
+              let f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E/2), Math.sqrt(1 - e) * Math.cos(E/2));
+              let r = a * (1 - e * Math.cos(E));
+              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Z = r * (Math.sin(ω+f) * Math.sin(i));
               let escala = 50;
-              return new THREE.Vector3(X*escala, Z*escala, Y*escala);
+              return new THREE.Vector3(X * escala, Z * escala, Y * escala);
             })(planeta, simulationTime);
             if(planeta.pivot) {
               planeta.pivot.position.copy(pos);
@@ -777,8 +767,8 @@
           });
           planets.forEach(planeta => {
             if(planeta.rotationPeriod) {
-              let rotDias = planeta.rotationPeriod/24;
-              let angle = simulationTime * (2*Math.PI/rotDias);
+              let rotDias = planeta.rotationPeriod / 24;
+              let angle = simulationTime * (2 * Math.PI / rotDias);
               if(planeta.pivot && planeta.tiltGroup) {
                 planeta.tiltGroup.rotation.y = angle;
               } else {
@@ -786,11 +776,11 @@
               }
             }
           });
-          // Atualiza movimento das luas
+          // Atualiza o movimento das luas
           planets.forEach(planeta => {
             if(planeta.luas) {
               planeta.luas.forEach(lua => {
-                let angleLua = (simulationTime * 2*Math.PI / lua.period) % (2*Math.PI);
+                let angleLua = (simulationTime * 2 * Math.PI / lua.period) % (2 * Math.PI);
                 if(lua.grupoOrbita)
                   lua.grupoOrbita.rotation.y = angleLua;
               });
