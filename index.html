@@ -1,108 +1,484 @@
 <!DOCTYPE html>
 <html lang="pt">
-<head>
-  <meta charset="UTF-8">
-  <title>Carregar CSVs do Sistema Solar</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .file-input { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 5px; }
-    .preview { margin-top: 10px; background: #f2f2f2; padding: 10px; max-height: 150px; overflow-y: auto; }
-  </style>
-</head>
-<body>
-  <h1>Importar Dados do Sistema Solar</h1>
-  
-  <!-- Input para o arquivo do Universo / Sistemas Solares -->
-  <div class="file-input">
-    <label for="solarSystemsFile">SolarSystems.csv:</label>
-    <input type="file" id="solarSystemsFile" accept=".csv">
-    <div id="solarSystemsPreview" class="preview"></div>
-  </div>
-  
-  <!-- Input para o arquivo de Planetas -->
-  <div class="file-input">
-    <label for="planetsFile">Planets.csv:</label>
-    <input type="file" id="planetsFile" accept=".csv">
-    <div id="planetsPreview" class="preview"></div>
-  </div>
-  
-  <!-- Input para o arquivo de Luas -->
-  <div class="file-input">
-    <label for="moonsFile">Moons.csv:</label>
-    <input type="file" id="moonsFile" accept=".csv">
-    <div id="moonsPreview" class="preview"></div>
-  </div>
-  
-  <button id="importData">Importar Dados</button>
-  
-  <script>
-    // Variáveis para armazenar os dados dos CSVs
-    let solarSystemsData, planetsData, moonsData;
+  <head>
+    <meta charset="UTF-8">
+    <title>Nope v1.5 – Sombras e Lua de Nope mais Rápida</title>
+    <style>
+      body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
+      /* Interface de Controle Principal (já existente) */
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #diagnostics {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+      input, label, button { font-size: 14px; }
+      #ui button { width: 60px; height: 60px; font-size: 24px; }
+      
+      /* Nova UI para Gerenciamento do Sistema Solar */
+      #solarControl {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #dropdownMenu {
+        display: none;
+        margin-top: 5px;
+      }
+      #dropdownMenu button {
+        display: block;
+        margin: 5px 0;
+        width: 100%;
+      }
+      /* Painel de Abas para edição dos planetas */
+      #tabsPanel {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      .tab {
+        display: inline-block;
+        background: rgba(255,255,255,0.1);
+        padding: 5px 10px;
+        margin-right: 5px;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .tab.editing { background: rgba(255,255,255,0.3); }
+      .tab input {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 14px;
+      }
+      .configPanel {
+        margin-top: 5px;
+        font-size: 12px;
+      }
+      .configPanel label { display: block; }
+    </style>
+  </head>
+  <body>
+    <!-- Interface de Controle já existente -->
+    <div id="ui">
+      <!-- Controles de velocidade, data e instruções (como no programa original) -->
+      <div>
+        <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
+        <input type="range" id="speedRange" min="1" max="10" step="1" value="1">
+      </div>
+      <div style="margin-top:8px;">
+        <button id="speedDown">–</button>
+        <button id="speedUp">+</button>
+      </div>
+      <div style="margin-top:8px;">
+        <label for="dateInput">Data:</label><br>
+        <input type="date" id="dateInput">
+      </div>
+      <div style="margin-top:8px;">
+        <span id="currentDate"></span>
+      </div>
+      <div style="margin-top:8px; font-size:12px;">
+        (Use mouse ou toque para orbitar, dar zoom e pan)
+      </div>
+    </div>
 
-    // Função para processar um arquivo CSV e exibir uma pré-visualização
-    function processCSV(fileInput, previewElement, callback) {
-      const file = fileInput.files[0];
-      if (file) {
-        Papa.parse(file, {
-          header: true,
-          complete: function(results) {
-            // Armazena os dados e mostra uma pré-visualização simples
-            callback(results.data);
-            previewElement.innerHTML = JSON.stringify(results.data.slice(0, 3), null, 2) + '<br><small>... (pré-visualização)</small>';
-          },
-          error: function(error) {
-            previewElement.innerHTML = 'Erro ao carregar o arquivo: ' + error;
-          }
+    <!-- Diagnóstico: Zoom -->
+    <div id="diagnostics">
+      Zoom: <span id="zoomValue">0</span> units
+    </div>
+
+    <!-- Nova UI: Botão dropdown no canto superior direito -->
+    <div id="solarControl">
+      <button id="dropdownToggle">☰</button>
+      <div id="dropdownMenu">
+        <button id="loadSolarSystem">Carregar Sistema Solar</button>
+        <!-- Aqui podem ser adicionados outros botões, por exemplo, "Salvar Sistema Solar" -->
+        <button id="saveSolarSystem">Salvar Sistema Solar</button>
+      </div>
+    </div>
+
+    <!-- Nova UI: Painel de abas para edição dos planetas -->
+    <div id="tabsPanel">
+      <!-- A primeira aba é o botão "+" para adicionar um novo planeta -->
+      <span class="tab" id="addPlanetTab">+</span>
+    </div>
+
+    <!-- Three.js e OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+      (function(){
+        // =============================
+        // Cena, câmera, renderer e controles (mesmo que o código original)
+        // =============================
+        let scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        
+        let camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
+        camera.position.set(0, 200, 500);
+        
+        let renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        let textureLoader = new THREE.TextureLoader();
+        let controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 2000;
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth/window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
         });
-      } else {
-        previewElement.innerHTML = 'Nenhum arquivo selecionado.';
-      }
-    }
-
-    // Seleciona os elementos de input e preview
-    const solarSystemsFileInput = document.getElementById('solarSystemsFile');
-    const planetsFileInput = document.getElementById('planetsFile');
-    const moonsFileInput = document.getElementById('moonsFile');
-
-    const solarSystemsPreview = document.getElementById('solarSystemsPreview');
-    const planetsPreview = document.getElementById('planetsPreview');
-    const moonsPreview = document.getElementById('moonsPreview');
-
-    // Adiciona listeners para atualizar a pré-visualização ao selecionar um arquivo
-    solarSystemsFileInput.addEventListener('change', () => {
-      processCSV(solarSystemsFileInput, solarSystemsPreview, (data) => {
-        solarSystemsData = data;
-      });
-    });
-    planetsFileInput.addEventListener('change', () => {
-      processCSV(planetsFileInput, planetsPreview, (data) => {
-        planetsData = data;
-      });
-    });
-    moonsFileInput.addEventListener('change', () => {
-      processCSV(moonsFileInput, moonsPreview, (data) => {
-        moonsData = data;
-      });
-    });
-
-    // Botão para importar os dados
-    document.getElementById('importData').addEventListener('click', () => {
-      if (solarSystemsData && planetsData && moonsData) {
-        // Aqui você pode integrar os dados à sua simulação,
-        // criando os objetos e relacionando os planetas e luas conforme os IDs.
-        console.log('Dados do Sistema Solar:', solarSystemsData);
-        console.log('Dados dos Planetas:', planetsData);
-        console.log('Dados das Luas:', moonsData);
-
-        alert('Dados importados com sucesso!');
-        // Exemplo: chamar uma função para atualizar a simulação com esses dados.
-        // updateSimulation(solarSystemsData, planetsData, moonsData);
-      } else {
-        alert('Por favor, selecione os três arquivos CSV.');
-      }
-    });
-  </script>
-</body>
+        
+        // =============================
+        // Variáveis de simulação e tempo (como no original)
+        // =============================
+        const speedRange = document.getElementById('speedRange');
+        const speedValue = document.getElementById('speedValue');
+        const speedDown = document.getElementById('speedDown');
+        const speedUp = document.getElementById('speedUp');
+        const dateInput = document.getElementById('dateInput');
+        const currentDateLabel = document.getElementById('currentDate');
+        const zoomValue = document.getElementById('zoomValue');
+        
+        let speedSetting = parseInt(speedRange.value);
+        speedValue.textContent = speedSetting;
+        speedDown.addEventListener('click', () => {
+          speedSetting = Math.max(1, speedSetting - 1);
+          speedRange.value = speedSetting;
+          speedValue.textContent = speedSetting;
+        });
+        speedUp.addEventListener('click', () => {
+          speedSetting = Math.min(10, speedSetting + 1);
+          speedRange.value = speedSetting;
+          speedValue.textContent = speedSetting;
+        });
+        speedRange.addEventListener('input', function(){
+          speedSetting = parseInt(this.value);
+          speedValue.textContent = speedSetting;
+        });
+        
+        const refDate = new Date();
+        dateInput.value = formatDate(refDate);
+        let simulationTime = 0; // em dias
+        dateInput.addEventListener('change', function(){
+          let newDate = new Date(this.value);
+          simulationTime = (newDate - refDate)/86400000;
+        });
+        function formatDate(date) {
+          let yyyy = date.getFullYear();
+          let mm = String(date.getMonth()+1).padStart(2,'0');
+          let dd = String(date.getDate()).padStart(2,'0');
+          return `${yyyy}-${mm}-${dd}`;
+        }
+        
+        function deg2rad(deg) { return deg * Math.PI/180; }
+        function solveKepler(M, e, tolerance=1e-6) {
+          let E = M, delta = 1;
+          while(Math.abs(delta) > tolerance) {
+            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
+            E = E - delta;
+          }
+          return E;
+        }
+        
+        // =============================
+        // Criação do Sol (idem ao original)
+        // =============================
+        let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        let sunTexture = textureLoader.load("sun-texture.jpg");
+        let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
+        let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.castShadow = false;
+        sun.receiveShadow = false;
+        scene.add(sun);
+        let sunLight = new THREE.PointLight(0xffffff, 2, 10000);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.1;
+        sunLight.shadow.camera.far = 20000;
+        sunLight.shadow.bias = -0.005;
+        sunLight.position.set(0,0,0);
+        sun.add(sunLight);
+        let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
+        let sunSurfaceTexture = textureLoader.load("sun-surface.png");
+        let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
+          map: sunSurfaceTexture,
+          transparent: true,
+          opacity: 0.7,
+          emissive: 0xffaa00,
+          emissiveIntensity: 0.5
+        });
+        let sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
+        sunSurfaceLayer.castShadow = false;
+        sunSurfaceLayer.receiveShadow = false;
+        sun.add(sunSurfaceLayer);
+        
+        // =============================
+        // Dados Internos (simulando o conteúdo dos CSVs)
+        // Esses arrays seriam carregados internamente de arquivos CSV armazenados no servidor.
+        // Aqui usamos valores iniciais de exemplo.
+        // =============================
+        let solarSystems = [
+          {
+            id: 1,
+            name: "Meu Sistema Solar",
+            central_star_name: "Sol",
+            planets: [
+              {
+                id: 1,
+                name: "Terra",
+                semi_major_axis: 1.0,
+                eccentricity: 0.0167,
+                inclination: 0,
+                ascending_node: 0,
+                argument_of_periapsis: 102.937,
+                mean_anomaly: 357.517,
+                orbital_period: 365.256,
+                rotation_period: 24,
+                axial_tilt: 23.5,
+                size: 3.5,
+                segments: 320,
+                texture_file: "earth-texture.jpg",
+                displacement_file: "earth-displacement.jpg",
+                fallback_color: "#ffffff",
+                moons: [
+                  {
+                    id: 1,
+                    name: "Lua",
+                    orbit_distance: 8,
+                    orbital_eccentricity: 0.0549,
+                    orbital_inclination: 5.145,
+                    orbital_period: 27.321,
+                    rotation_period: 27.321,
+                    size: 1,
+                    segments: 160,
+                    texture_file: "moon-texture.jpg",
+                    displacement_file: "moon-displacement.jpg",
+                    fallback_color: "#ffffff"
+                  }
+                ]
+              }
+            ]
+          }
+        ];
+        
+        // Variável que armazenará o sistema solar atualmente carregado
+        let currentSolarSystem = null;
+        let planetObjects = []; // Para armazenar os objetos 3D dos planetas
+        
+        // =============================
+        // Função para carregar o sistema solar (a partir dos dados internos simulados)
+        // =============================
+        function loadSolarSystem() {
+          // Para esse exemplo, carregamos o primeiro sistema solar
+          currentSolarSystem = solarSystems[0];
+          console.log("Sistema Solar carregado:", currentSolarSystem);
+          // Aqui você integraria os dados à simulação,
+          // criando os objetos 3D para cada planeta, suas órbitas, etc.
+          // Exemplo: limpar planetObjects e criar novos meshes para cada planeta.
+          currentSolarSystem.planets.forEach(planetData => {
+            let size = planetData.size;
+            // Usando 320 segmentos para planetas com maior detalhe
+            let segments = (planetData.name === "Terra") ? 320 : 16;
+            let geometry = new THREE.SphereGeometry(size, segments, segments);
+            let texture = textureLoader.load(planetData.texture_file);
+            let displacement = textureLoader.load(planetData.displacement_file);
+            let material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              map: texture,
+              displacementMap: displacement,
+              displacementScale: size * 0.025
+            });
+            let mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            // Para simplicidade, posicionamos os planetas de forma circular ao redor do sol
+            let angle = Math.random() * Math.PI * 2;
+            let distance = planetData.semi_major_axis * 50; // escala arbitrária
+            mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+            scene.add(mesh);
+            planetData.mesh = mesh; // vincula o mesh ao objeto de dados
+            planetObjects.push(mesh);
+            // Cria ou atualiza a aba de configuração para esse planeta
+            createOrUpdatePlanetTab(planetData);
+          });
+        }
+        
+        // =============================
+        // Funções para a interface de abas
+        // =============================
+        const tabsPanel = document.getElementById('tabsPanel');
+        const addPlanetTab = document.getElementById('addPlanetTab');
+        
+        function createOrUpdatePlanetTab(planetData) {
+          // Verifica se já existe uma aba para esse planeta
+          let tab = document.querySelector(`.tab[data-planet-id="${planetData.id}"]`);
+          if (!tab) {
+            tab = document.createElement('span');
+            tab.className = 'tab';
+            tab.dataset.planetId = planetData.id;
+            tab.textContent = planetData.name;
+            // Permitir edição do nome via duplo clique
+            tab.addEventListener('dblclick', () => {
+              let input = document.createElement('input');
+              input.type = 'text';
+              input.value = planetData.name;
+              input.addEventListener('blur', () => {
+                planetData.name = input.value;
+                tab.textContent = planetData.name;
+                tab.appendChild(configPanel);
+              });
+              tab.textContent = '';
+              tab.appendChild(input);
+              input.focus();
+            });
+            // Cria um painel de configuração para o planeta (exemplo simplificado)
+            let configPanel = document.createElement('div');
+            configPanel.className = 'configPanel';
+            configPanel.innerHTML = `
+              <label>Semi-eixo: <input type="number" value="${planetData.semi_major_axis}" step="0.1" onchange="updatePlanetValue(${planetData.id}, 'semi_major_axis', this.value)"></label>
+              <label>Excentricidade: <input type="number" value="${planetData.eccentricity}" step="0.001" onchange="updatePlanetValue(${planetData.id}, 'eccentricity', this.value)"></label>
+              <button onclick="savePlanet(${planetData.id})">Salvar Planeta</button>
+            `;
+            tab.appendChild(configPanel);
+            // Adiciona a nova aba antes do botão "+"
+            tabsPanel.insertBefore(tab, addPlanetTab);
+          }
+        }
+        
+        // Exemplo de função global para atualizar um valor do planeta
+        window.updatePlanetValue = function(planetId, key, value) {
+          let planet = currentSolarSystem.planets.find(p => p.id === planetId);
+          if (planet) {
+            planet[key] = parseFloat(value);
+            console.log(`Atualizado ${key} do planeta ${planet.name} para ${value}`);
+          }
+        }
+        
+        // Exemplo de função global para salvar os dados do planeta (aqui, você implementaria a lógica de salvar nos CSVs)
+        window.savePlanet = function(planetId) {
+          let planet = currentSolarSystem.planets.find(p => p.id === planetId);
+          if (planet) {
+            alert(`Planeta ${planet.name} salvo!`);
+            // Aqui você geraria a string CSV e enviaria para o servidor ou salvar localmente
+          }
+        }
+        
+        // Evento para adicionar novo planeta via aba "+"
+        addPlanetTab.addEventListener('click', () => {
+          // Cria um novo objeto de planeta com valores padrão
+          let newPlanet = {
+            id: Date.now(), // ou outro método de gerar ID único
+            name: "Novo Planeta",
+            semi_major_axis: 1.0,
+            eccentricity: 0.0,
+            inclination: 0,
+            ascending_node: 0,
+            argument_of_periapsis: 0,
+            mean_anomaly: 0,
+            orbital_period: 365,
+            rotation_period: 24,
+            axial_tilt: 0,
+            size: 3,
+            segments: 320,
+            texture_file: "default-texture.jpg",
+            displacement_file: "default-displacement.jpg",
+            fallback_color: "#ffffff",
+            moons: []
+          };
+          currentSolarSystem.planets.push(newPlanet);
+          // Crie o objeto 3D para o novo planeta (posição padrão)
+          let geometry = new THREE.SphereGeometry(newPlanet.size, newPlanet.segments, newPlanet.segments);
+          let texture = textureLoader.load(newPlanet.texture_file);
+          let material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
+          let mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(Math.random()*100-50, 0, Math.random()*100-50);
+          scene.add(mesh);
+          newPlanet.mesh = mesh;
+          planetObjects.push(mesh);
+          createOrUpdatePlanetTab(newPlanet);
+        });
+        
+        // =============================
+        // Dropdown no canto superior direito
+        // =============================
+        const dropdownToggle = document.getElementById('dropdownToggle');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        dropdownToggle.addEventListener('click', () => {
+          dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.getElementById('loadSolarSystem').addEventListener('click', () => {
+          loadSolarSystem();
+          dropdownMenu.style.display = 'none';
+        });
+        
+        document.getElementById('saveSolarSystem').addEventListener('click', () => {
+          alert("Sistema Solar salvo!");
+          // Aqui você implementaria a lógica para gerar os CSVs com os dados atuais do sistema
+        });
+        
+        // =============================
+        // Loop de animação (como no código original)
+        // =============================
+        let lastFrameTime = performance.now();
+        function animate() {
+          requestAnimationFrame(animate);
+          let now = performance.now();
+          let dt = (now - lastFrameTime)/1000;
+          lastFrameTime = now;
+          
+          let minSpeedFactor = 365.256/3600;
+          let maxSpeedFactor = 100 * 365.256/3600;
+          let speedFactor = minSpeedFactor + ((speedSetting - 1)/9) * (maxSpeedFactor - minSpeedFactor);
+          simulationTime += dt * speedFactor;
+          let simDate = new Date(refDate.getTime() + simulationTime*86400000);
+          currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
+          
+          // Atualiza rotações dos planetas (exemplo simplificado)
+          planetObjects.forEach(mesh => {
+            mesh.rotation.y += 0.01;
+          });
+          
+          // Atualiza o target dos controles (exemplo simples)
+          controls.target.copy(sun.position);
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+      })();
+    </script>
+  </body>
 </html>
