@@ -1,0 +1,2 @@
+id,solar_system_id,name,semi_major_axis,eccentricity,inclination,ascending_node,argument_of_periapsis,mean_anomaly,orbital_period,rotation_period,axial_tilt,size,segments,texture_file,displacement_file,fallback_color
+1,1,Terra,1.0,0.0167,0.0,0.0,102.937,357.517,365.256,24,23.5,3.5,320,earth-texture.jpg,earth-displacement.jpg,#ffffff
