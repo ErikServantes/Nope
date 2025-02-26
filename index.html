@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8">
+    <title>Sistema Solar – Versão Padrão</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: #eee;
+        font-family: Arial, sans-serif;
+      }
+      /* Botão de Configuração (ícone de roda dentada) */
+      #configButton {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        background: rgba(50,50,50,0.8);
+        border-radius: 50%;
+        text-align: center;
+        line-height: 40px;
+        font-size: 22px;
+        cursor: pointer;
+        z-index: 200;
+      }
+      #configButton:hover {
+        background: rgba(70,70,70,0.9);
+      }
+      /* Painel de Configuração */
+      #configPanel {
+        position: fixed;
+        top: 60px;
+        right: 15px;
+        width: 300px;
+        max-height: 80%;
+        background: rgba(20,20,20,0.95);
+        border: 1px solid #444;
+        border-radius: 5px;
+        padding: 10px;
+        z-index: 200;
+        overflow-y: auto;
+        display: none;
+      }
+      #configPanel header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #configPanel header h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      #configPanel header button {
+        background: none;
+        border: none;
+        color: #eee;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      /* Menu de Controlo à Esquerda */
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #ui select, #ui input {
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      #dateInput {
+        width: 100%;
+        padding: 4px;
+        background: #222;
+        border: 1px solid #555;
+        border-radius: 3px;
+        color: #eee;
+      }
+      #timeSlider {
+        width: 100%;
+      }
+      /* Abas para configuração de planetas */
+      #planetTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin-bottom: 8px;
+      }
+      #planetTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 6px 10px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 14px;
+        border-bottom: 2px solid transparent;
+      }
+      #planetTabs button.active {
+        color: #fff;
+        border-color: #00aced;
+      }
+      .planetContent {
+        display: none;
+      }
+      .planetContent.active {
+        display: block;
+      }
+      .configField {
+        margin-bottom: 8px;
+      }
+      .configField label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      .configField input {
+        width: 100%;
+        padding: 4px;
+        font-size: 13px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #222;
+        color: #eee;
+      }
+      .colorPicker {
+        width: 100%;
+        height: 30px;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      .loadTextureBtn {
+        margin-top: 4px;
+        padding: 4px 8px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      /* Abas para as luas */
+      .moonTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin: 8px 0;
+      }
+      .moonTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 12px;
+        border-bottom: 2px solid transparent;
+      }
+      .moonTabs button.active {
+        color: #fff;
+        border-color: #f39c12;
+      }
+      .moonContent {
+        display: none;
+      }
+      .moonContent.active {
+        display: block;
+      }
+      .sectionTitle {
+        font-size: 14px;
+        margin: 8px 0 4px;
+        border-bottom: 1px solid #555;
+        padding-bottom: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Botão de Configuração -->
+    <div id="configButton">⚙️</div>
+    <!-- Painel de Configuração -->
+    <div id="configPanel">
+      <header>
+        <h3>Configuração do Sistema</h3>
+        <button id="closeConfig">X</button>
+      </header>
+      <!-- Abas para os Planetas -->
+      <div id="planetTabs"></div>
+      <!-- Conteúdo de cada Planeta -->
+      <div id="planetContents"></div>
+    </div>
+    <!-- Menu de Controlo à Esquerda -->
+    <div id="ui">
+      <select id="highlightSelect"></select>
+      <input type="date" id="dateInput">
+      <div>
+        <input type="range" id="timeSlider" min="-4" max="4" step="1" value="0">
+      </div>
+    </div>
+    <!-- Three.js e OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+      (function(){
+        // Cria a cena, câmara e renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
+        camera.position.set(0,200,500);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 2000;
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth/window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        // Luz ambiente para realçar os materiais
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambientLight);
+        // Variáveis temporais
+        const refDate = new Date();
+        let simulationTime = 0;
+        const speedMapping = {"-4": -3650,"-3": -365,"-2": -30,"-1": -10,"0": 1,"1": 10,"2": 30,"3": 365,"4": 3650};
+        const timeSlider = document.getElementById("timeSlider");
+        const dateInput = document.getElementById("dateInput");
+        function formatForInput(date) {
+          let yyyy = date.getFullYear();
+          let mm = String(date.getMonth()+1).padStart(2,'0');
+          let dd = String(date.getDate()).padStart(2,'0');
+          return `${yyyy}-${mm}-${dd}`;
+        }
+        dateInput.value = formatForInput(refDate);
+        dateInput.addEventListener("change", function(){
+          let newDate = new Date(this.value);
+          simulationTime = (newDate - refDate) / 86400000;
+        });
+        function formatDate(date) {
+          let dd = String(date.getDate()).padStart(2,'0');
+          let mm = String(date.getMonth()+1).padStart(2,'0');
+          let yyyy = date.getFullYear();
+          return dd + "-" + mm + "-" + yyyy;
+        }
+        // Funções auxiliares
+        function deg2rad(deg) { return deg * Math.PI/180; }
+        function solveKepler(M, e, tolerance=1e-6) {
+          let E = M, delta = 1;
+          while(Math.abs(delta) > tolerance) {
+            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
+            E = E - delta;
+          }
+          return E;
+        }
+        // Cria o Sol
+        const sunGeometry = new THREE.SphereGeometry(10,32,32);
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.castShadow = false;
+        sun.receiveShadow = false;
+        scene.add(sun);
+        // Array para armazenar planetas
+        let planets = [];
+        // Funções para atualizar cor e textura
+        function updateObjectColor(object, color) {
+          if(object && object.material) {
+            object.material.color.set(color);
+            object.material.needsUpdate = true;
+          }
+        }
+        function updateObjectTexture(object, url) {
+          if(object && object.material) {
+            new THREE.TextureLoader().load(url, function(tex) {
+              object.material.map = tex;
+              object.material.needsUpdate = true;
+            });
+          }
+        }
+        // Dropdown para selecionar planeta em destaque
+        const highlightSelect = document.getElementById("highlightSelect");
+        function atualizarDropdownDestaque() {
+          highlightSelect.innerHTML = "";
+          planets.sort((p1,p2)=>p1.a - p2.a);
+          planets.forEach((p,i)=>{
+            let option = document.createElement("option");
+            option.value = p.name;
+            option.textContent = (i+1) + " - " + p.name;
+            highlightSelect.appendChild(option);
+          });
+        }
+        atualizarDropdownDestaque();
+        highlightSelect.addEventListener("change", function(){
+          // Alvo do zoom atualizado automaticamente
+        });
+        // Preenche o sistema solar com os planetas padrão
+        const solarSystemPlanets = [
+          { name: "Mercúrio", distanciaAU: 0.39, e: 0.2056, i: 7.005, Ω: 48.331, ω: 29.124, M0: 174.796, period: 87.97, rotationPeriod: 1407.6, axialTilt: 0, tamanhoTerra: 0.383, color: "#aaaaaa" },
+          { name: "Vénus",    distanciaAU: 0.72, e: 0.0068, i: 3.394, Ω: 76.680, ω: 54.884, M0: 50.115,  period: 224.70, rotationPeriod: -5832, axialTilt: 177, tamanhoTerra: 0.95,  color: "#ffcc66" },
+          { name: "Terra",    distanciaAU: 1,    e: 0.0167, i: 0,      Ω: 0,      ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24,   axialTilt: 23.5, tamanhoTerra: 1,     color: "#2233ff" },
+          { name: "Marte",    distanciaAU: 1.52, e: 0.0934, i: 1.850, Ω: 49.558, ω: 286.502, M0: 19.373,  period: 686.980, rotationPeriod: 24.6, axialTilt: 25,   tamanhoTerra: 0.532, color: "#ff3300" },
+          { name: "Júpiter",  distanciaAU: 5.20, e: 0.0489, i: 1.304, Ω: 100.464,ω: 273.867, M0: 20.020,  period: 4332.59, rotationPeriod: 9.9,  axialTilt: 3,    tamanhoTerra: 11.21, color: "#ffcc99" },
+          { name: "Saturno",  distanciaAU: 9.54, e: 0.0565, i: 2.485, Ω: 113.665,ω: 339.392, M0: 317.020, period: 10759.22,rotationPeriod: 10.7, axialTilt: 26.7, tamanhoTerra: 9.45,  color: "#ffff99" },
+          { name: "Urano",    distanciaAU: 19.19,e: 0.0463, i: 0.773, Ω: 74.006, ω: 96.998,  M0: 142.238, period: 30685.4, rotationPeriod: 17.2, axialTilt: 97.8, tamanhoTerra: 4.01,  color: "#99ffff" },
+          { name: "Netuno",   distanciaAU: 30.07,e: 0.0086, i: 1.770, Ω: 131.784,ω: 272.846, M0: 256.228, period: 60190,  rotationPeriod: 16.1, axialTilt: 28.3, tamanhoTerra: 3.88,  color: "#6666ff" },
+          { name: "Plutão",   distanciaAU: 39.48,e: 0.2488, i: 17.16, Ω: 110.299,ω: 113.834, M0: 14.53,  period: 90560,  rotationPeriod: 153.3,axialTilt: 122.5, tamanhoTerra: 0.186, color: "#cccccc" }
+        ];
+        // Adiciona cada planeta do array ao sistema
+        solarSystemPlanets.forEach(p => {
+          criarPlaneta(p);
+        });
+        atualizarTabsPlanetas();
+        atualizarDropdownDestaque();
+        // Interface de configuração – abas
+        const configButton = document.getElementById("configButton");
+        const configPanel = document.getElementById("configPanel");
+        const closeConfig = document.getElementById("closeConfig");
+        const planetTabsDiv = document.getElementById("planetTabs");
+        const planetContentsDiv = document.getElementById("planetContents");
+        function atualizarTabsPlanetas() {
+          planetTabsDiv.innerHTML = "";
+          planetContentsDiv.innerHTML = "";
+          if(planets.length === 0) {
+            let aviso = document.createElement("p");
+            aviso.textContent = "Nenhum planeta adicionado.";
+            planetContentsDiv.appendChild(aviso);
+          }
+          planets.forEach((planeta, index) => {
+            let btnTab = document.createElement("button");
+            btnTab.textContent = (index+1) + " - " + planeta.name;
+            btnTab.addEventListener("click", () => { selecionarTabPlaneta(index); });
+            btnTab.ondblclick = function(){
+              let novoNome = prompt("Insira o novo nome para este planeta:", planeta.name);
+              if(novoNome) {
+                planeta.name = novoNome;
+                atualizarTabsPlanetas();
+                atualizarDropdownDestaque();
+              }
+            };
+            planetTabsDiv.appendChild(btnTab);
+            let divContent = document.createElement("div");
+            divContent.classList.add("planetContent");
+            divContent.dataset.index = index;
+            let info = document.createElement("p");
+            info.textContent = "Configuração do planeta " + planeta.name;
+            divContent.appendChild(info);
+            // (Aqui poderiam ser adicionados mais campos de configuração)
+            planetContentsDiv.appendChild(divContent);
+          });
+          let btnAddPlaneta = document.createElement("button");
+          btnAddPlaneta.textContent = "➕";
+          btnAddPlaneta.addEventListener("click", function(){
+            let novoPlaneta = {
+              name: "Novo Planeta",
+              distanciaAU: 1,
+              e: 0.1,
+              i: 5,
+              Ω: 0,
+              ω: 0,
+              M0: 0,
+              period: 365,
+              rotationPeriod: 24,
+              axialTilt: 23,
+              tamanhoTerra: 1,
+              color: "#ffffff"
+            };
+            criarPlaneta(novoPlaneta);
+            atualizarTabsPlanetas();
+            selecionarTabPlaneta(planets.length - 1);
+            atualizarDropdownDestaque();
+          });
+          planetTabsDiv.appendChild(btnAddPlaneta);
+          if(planets.length) selecionarTabPlaneta(0);
+          atualizarDropdownDestaque();
+        }
+        function selecionarTabPlaneta(index) {
+          Array.from(planetTabsDiv.children).forEach((btn, i) => {
+            if(i < planets.length) btn.classList.toggle("active", i === index);
+          });
+          Array.from(planetContentsDiv.children).forEach((div, i) => {
+            div.classList.toggle("active", i === index);
+          });
+        }
+        // Controlo do painel de configuração
+        configButton.addEventListener("click", () => {
+          configPanel.style.display = configPanel.style.display === "none" ? "block" : "none";
+        });
+        closeConfig.addEventListener("click", () => {
+          configPanel.style.display = "none";
+        });
+        // Sistema de Destaque – alvo do zoom
+        function getZoomTarget() {
+          let selectedName = highlightSelect.value;
+          let p = planets.find(p => p.name === selectedName);
+          if(p) return p.pivot ? p.pivot.position : p.mesh.position;
+          return new THREE.Vector3();
+        }
+        function updateControlsTarget() {
+          let targetPos = getZoomTarget();
+          let D = new THREE.Vector3().subVectors(targetPos, sun.position).normalize();
+          let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
+          let projLength = camOffset.dot(D);
+          let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
+          let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
+          let L = vector2.length();
+          let t;
+          if(L > 200) { t = 0; }
+          else if(L < 50) { t = 1; }
+          else { t = (200 - L) / 150; }
+          let newTarget = new THREE.Vector3().lerpVectors(sun.position, targetPos, t);
+          controls.target.lerp(newTarget, 0.05);
+        }
+        // Loop de animação – evolução temporal
+        let lastFrameTime = performance.now();
+        function animate() {
+          requestAnimationFrame(animate);
+          let now = performance.now();
+          let dt = (now - lastFrameTime) / 1000;
+          lastFrameTime = now;
+          let sliderValue = timeSlider.value;
+          let effectiveSpeed = speedMapping[sliderValue];
+          simulationTime += dt * effectiveSpeed;
+          let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
+          if(document.activeElement !== dateInput)
+            dateInput.value = formatForInput(simDate);
+          planets.forEach(planeta => {
+            let pos = (function(planet, time) {
+              let a = planet.a, e = planet.e, i = deg2rad(planet.i),
+                  Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
+                  period = planet.period;
+              let n = 2*Math.PI/period;
+              let M = (M0+n*time)%(2*Math.PI);
+              let E = solveKepler(M,e);
+              let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+              let r = a*(1-e*Math.cos(E));
+              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r*(Math.sin(ω+f)*Math.sin(i));
+              let scale = 50;
+              return new THREE.Vector3(X*scale, Z*scale, Y*scale);
+            })(planeta, simulationTime);
+            if(planeta.pivot)
+              planeta.pivot.position.copy(pos);
+            else
+              planeta.mesh.position.copy(pos);
+          });
+          planets.forEach(planeta => {
+            if(planeta.rotationPeriod) {
+              let rotDias = planeta.rotationPeriod/24;
+              let angle = simulationTime*(2*Math.PI/rotDias);
+              if(planeta.pivot && planeta.tiltGroup)
+                planeta.tiltGroup.rotation.y = angle;
+              else
+                planeta.mesh.rotation.y = angle;
+            }
+          });
+          planets.forEach(planeta => {
+            if(planeta.luas) {
+              planeta.luas.forEach(lua => {
+                let angleLua = (simulationTime*2*Math.PI/lua.period)%(2*Math.PI);
+                if(lua.grupoOrbita)
+                  lua.grupoOrbita.rotation.y = angleLua;
+              });
+            }
+          });
+          updateControlsTarget();
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+      })();
+      // Funções auxiliares para atualizar cor e textura
+      function updateObjectColor(object, color) {
+        if(object && object.material) {
+          object.material.color.set(color);
+          object.material.needsUpdate = true;
+        }
+      }
+      function updateObjectTexture(object, url) {
+        if(object && object.material) {
+          new THREE.TextureLoader().load(url, function(tex) {
+            object.material.map = tex;
+            object.material.needsUpdate = true;
+          });
+        }
+      }
+      function planetDataHasTexture(planet) { return !!planet.texture; }
+      function planetDataHasColor(planet) { return !!planet.color; }
+    </script>
+  </body>
+</html>
