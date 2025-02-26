@@ -116,6 +116,11 @@
     
     <script>
       (function(){
+        // Fator de escala: 1UA = 16 Terras; considerando que o tamanho de uma Terra é 3.5, 16*3.5 = 56.
+        const distanceScale = 56;
+        // O Sol terá um raio de 8 Terras, ou seja, 8 * 3.5 = 28.
+        const sunRadius = 28;
+        
         // =============================
         // Cena, câmera, renderer e controles
         // =============================
@@ -196,9 +201,9 @@
         }
         
         // =============================
-        // Criação do Sol (como no código original)
+        // Criação do Sol (ajustado para tamanho de 8 Terras)
         // =============================
-        let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        let sunGeometry = new THREE.SphereGeometry(sunRadius, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -214,7 +219,7 @@
         sunLight.shadow.bias = -0.005;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
-        let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
+        let sunSurfaceGeometry = new THREE.SphereGeometry(sunRadius * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
           map: sunSurfaceTexture,
@@ -311,7 +316,7 @@
             // Geramos um ângulo aleatório e armazenamos em planetData para uso posterior
             let angle = Math.random() * Math.PI * 2;
             planetData.angle = angle;
-            let distance = planetData.semi_major_axis * 50;
+            let distance = planetData.semi_major_axis * distanceScale;
             mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
             scene.add(mesh);
             planetData.mesh = mesh;
@@ -330,8 +335,7 @@
               let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
               let Z = r*(Math.sin(ω+f)*Math.sin(i));
-              let scale = 50;
-              orbitPoints.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+              orbitPoints.push(new THREE.Vector3(X*distanceScale, Z*distanceScale, Y*distanceScale));
             }
             let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
             let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
@@ -340,7 +344,7 @@
             planetData.orbitLine = orbitLine;
           });
           
-          // Cria as luas associadas aos planetas
+          // Criação das luas associadas aos planetas
           moonsData.forEach(function(moonData) {
             moonData.planet_id = parseInt(moonData.planet_id);
             moonData.orbit_distance = parseFloat(moonData.orbit_distance);
@@ -366,7 +370,7 @@
               let moonMesh = new THREE.Mesh(geometry, material);
               moonMesh.castShadow = true;
               moonMesh.receiveShadow = true;
-              // Posiciona a lua relativamente ao planeta (deslocamento horizontal simples)
+              // Posiciona a lua relativamente ao planeta (mantemos o deslocamento definido no CSV)
               let moonPos = new THREE.Vector3().copy(planet.mesh.position).add(new THREE.Vector3(moonData.orbit_distance, 0, 0));
               moonMesh.position.copy(moonPos);
               scene.add(moonMesh);
@@ -379,10 +383,9 @@
         // Função para atualizar um planeta quando seus parâmetros são alterados
         // =============================
         function updatePlanet(planetData) {
-          // Atualiza posição com base no semi-eixo e no ângulo armazenado
-          let distance = planetData.semi_major_axis * 50;
+          let distance = planetData.semi_major_axis * distanceScale;
           planetData.mesh.position.set(Math.cos(planetData.angle) * distance, 0, Math.sin(planetData.angle) * distance);
-          // Atualiza a linha de órbita: remove a antiga e cria uma nova
+          // Atualiza a linha de órbita: remove a antiga e recria uma nova
           if (planetData.orbitLine) {
             scene.remove(planetData.orbitLine);
           }
@@ -399,8 +402,7 @@
             let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
             let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
             let Z = r*(Math.sin(ω+f)*Math.sin(i));
-            let scale = 50;
-            orbitPoints.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+            orbitPoints.push(new THREE.Vector3(X*distanceScale, Z*distanceScale, Y*distanceScale));
           }
           let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
           let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
@@ -431,9 +433,8 @@
             // Container com os parâmetros editáveis
             let params = document.createElement("div");
             params.className = "planetParams";
-            params.style.display = "none";  // inicialmente oculto
+            params.style.display = "none";
             
-            // Função auxiliar para criar um campo de entrada
             function createField(labelText, fieldName, step = 0.1) {
               let labelElem = document.createElement("label");
               labelElem.textContent = labelText + ": ";
@@ -449,7 +450,6 @@
               return labelElem;
             }
             
-            // Campos editáveis – você pode adicionar ou remover conforme necessário
             params.appendChild(createField("Semi-eixo", "semi_major_axis", 0.01));
             params.appendChild(createField("Excentricidade", "eccentricity", 0.001));
             params.appendChild(createField("Inclinação", "inclination", 0.1));
