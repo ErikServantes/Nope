@@ -5,6 +5,7 @@
     <title>Nope v1.5 – Sombras e Lua de Nope mais Rápida</title>
     <style>
       body { margin: 0; overflow: hidden; background: #000; color: white; font-family: Arial, sans-serif; }
+      /* Interface de Controle Original */
       #ui {
         position: absolute;
         top: 10px;
@@ -26,12 +27,57 @@
       }
       input, label, button { font-size: 14px; }
       #ui button { width: 60px; height: 60px; font-size: 24px; }
+      
+      /* Menu flutuante para edição dos planetas */
+      #planetMenu {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 300;
+        background: rgba(0,0,0,0.85);
+        padding: 10px;
+        border-radius: 5px;
+        max-height: 90vh;
+        overflow-y: auto;
+        width: 300px;
+      }
+      #planetMenu h2 {
+        margin-top: 0;
+        font-size: 18px;
+        text-align: center;
+      }
+      .planetEntry {
+        border: 1px solid #444;
+        margin-bottom: 10px;
+        padding: 5px;
+        border-radius: 3px;
+      }
+      .planetEntry h3 {
+        margin: 5px 0;
+        cursor: pointer;
+      }
+      .planetParams {
+        font-size: 12px;
+        display: none;
+      }
+      .planetParams label {
+        display: block;
+        margin: 2px 0;
+      }
+      .planetParams input {
+        width: 90%;
+        padding: 2px;
+        margin-bottom: 4px;
+        background: #222;
+        border: 1px solid #555;
+        color: white;
+      }
     </style>
-    <!-- PapaParse para carregar os CSVs -->
+    <!-- Incluindo PapaParse para carregar CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
   </head>
   <body>
-    <!-- Interface de Controle -->
+    <!-- Interface de Controle Original -->
     <div id="ui">
       <div>
         <label for="speedRange">Velocidade (1 a 10): <span id="speedValue">1</span>x</label><br>
@@ -52,18 +98,29 @@
         (Use mouse ou toque para orbitar, dar zoom e pan)
       </div>
     </div>
-
+    
     <!-- Diagnóstico: Zoom -->
     <div id="diagnostics">
       Zoom: <span id="zoomValue">0</span> units
     </div>
-
+    
+    <!-- Menu flutuante para edição dos planetas -->
+    <div id="planetMenu">
+      <h2>Edição dos Planetas</h2>
+      <!-- As entradas para cada planeta serão adicionadas dinamicamente -->
+    </div>
+    
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <script>
       (function(){
+        // Fator de escala: 1UA = 16 Terras; considerando que o tamanho de uma Terra é 3.5, 16*3.5 = 56.
+        const distanceScale = 56;
+        // O Sol terá um raio de 8 Terras, ou seja, 8 * 3.5 = 28.
+        const sunRadius = 28;
+        
         // =============================
         // Cena, câmera, renderer e controles
         // =============================
@@ -144,9 +201,9 @@
         }
         
         // =============================
-        // Criação do Sol (mesmo que o original)
+        // Criação do Sol (ajustado para tamanho de 8 Terras)
         // =============================
-        let sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        let sunGeometry = new THREE.SphereGeometry(sunRadius, 32, 32);
         let sunTexture = textureLoader.load("sun-texture.jpg");
         let sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         let sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -162,7 +219,7 @@
         sunLight.shadow.bias = -0.005;
         sunLight.position.set(0,0,0);
         sun.add(sunLight);
-        let sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
+        let sunSurfaceGeometry = new THREE.SphereGeometry(sunRadius * 1.005, 32, 32);
         let sunSurfaceTexture = textureLoader.load("sun-surface.png");
         let sunSurfaceMaterial = new THREE.MeshPhongMaterial({
           map: sunSurfaceTexture,
@@ -212,6 +269,7 @@
         function checkDataLoaded() {
           if (planetsLoaded && moonsLoaded) {
             initPlanets();
+            createPlanetMenu();
           }
         }
         
@@ -219,9 +277,8 @@
         // Função para criar planetas e luas a partir dos CSVs
         // =============================
         function initPlanets() {
-          // Cria cada planeta com base nos dados do CSV
           planetsData.forEach(function(planetData) {
-            // Converter valores numéricos (CSV retorna strings)
+            // Converter valores numéricos
             planetData.semi_major_axis = parseFloat(planetData.semi_major_axis);
             planetData.eccentricity = parseFloat(planetData.eccentricity);
             planetData.inclination = parseFloat(planetData.inclination);
@@ -230,11 +287,11 @@
             planetData.mean_anomaly = parseFloat(planetData.mean_anomaly);
             planetData.orbital_period = parseFloat(planetData.orbital_period);
             planetData.rotation_period = parseFloat(planetData.rotation_period);
-            planetData.axial_tilt = parseFloat(planetData.axial_tilt);
+            if(planetData.axial_tilt) planetData.axial_tilt = parseFloat(planetData.axial_tilt);
             planetData.size = parseFloat(planetData.size);
             planetData.segments = parseInt(planetData.segments);
             
-            // Escolhe maior detalhe para Terra, Marte e Nope
+            // Para maior detalhe em Terra, Marte e Nope, usamos os segmentos do CSV; senão, 16.
             let segments = (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") ? planetData.segments : 16;
             let geometry = new THREE.SphereGeometry(planetData.size, segments, segments);
             let texture = textureLoader.load(planetData.texture_file);
@@ -256,9 +313,10 @@
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            // Posicionamento baseado no semi-eixo (escala arbitrária)
+            // Geramos um ângulo aleatório e armazenamos em planetData para uso posterior
             let angle = Math.random() * Math.PI * 2;
-            let distance = planetData.semi_major_axis * 50;
+            planetData.angle = angle;
+            let distance = planetData.semi_major_axis * distanceScale;
             mesh.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
             scene.add(mesh);
             planetData.mesh = mesh;
@@ -271,22 +329,22 @@
             let i = deg2rad(planetData.inclination);
             let Ω = deg2rad(planetData.ascending_node);
             let ω = deg2rad(planetData.argument_of_periapsis);
-            for(let j = 0; j <= numPoints; j++){
-              let f = 2 * Math.PI * j / numPoints;
-              let r = a * (1 - e * e) / (1 + e * Math.cos(f));
-              let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
-              let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
-              let Z = r * (Math.sin(ω + f) * Math.sin(i));
-              let scale = 50;
-              orbitPoints.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
+            for(let j=0; j<=numPoints; j++){
+              let f = 2*Math.PI*j/numPoints;
+              let r = a*(1-e*e)/(1+e*Math.cos(f));
+              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r*(Math.sin(ω+f)*Math.sin(i));
+              orbitPoints.push(new THREE.Vector3(X*distanceScale, Z*distanceScale, Y*distanceScale));
             }
             let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
             let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
             let orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
             scene.add(orbitLine);
+            planetData.orbitLine = orbitLine;
           });
           
-          // Cria as luas associadas aos planetas
+          // Criação das luas associadas aos planetas
           moonsData.forEach(function(moonData) {
             moonData.planet_id = parseInt(moonData.planet_id);
             moonData.orbit_distance = parseFloat(moonData.orbit_distance);
@@ -297,8 +355,9 @@
             moonData.size = parseFloat(moonData.size);
             moonData.segments = parseInt(moonData.segments);
             
+            // Procura o planeta correspondente
             let planet = planetsData.find(p => parseInt(p.id) === moonData.planet_id);
-            if (planet && planet.mesh) {
+            if(planet && planet.mesh){
               let geometry = new THREE.SphereGeometry(moonData.size, moonData.segments, moonData.segments);
               let texture = textureLoader.load(moonData.texture_file);
               let displacement = textureLoader.load(moonData.displacement_file);
@@ -311,13 +370,99 @@
               let moonMesh = new THREE.Mesh(geometry, material);
               moonMesh.castShadow = true;
               moonMesh.receiveShadow = true;
-              // Posiciona a lua em relação ao planeta – deslocamento simples
-              let moonPos = new THREE.Vector3();
-              moonPos.copy(planet.mesh.position).add(new THREE.Vector3(moonData.orbit_distance, 0, 0));
+              // Posiciona a lua relativamente ao planeta (mantemos o deslocamento definido no CSV)
+              let moonPos = new THREE.Vector3().copy(planet.mesh.position).add(new THREE.Vector3(moonData.orbit_distance, 0, 0));
               moonMesh.position.copy(moonPos);
               scene.add(moonMesh);
               moonData.mesh = moonMesh;
             }
+          });
+        }
+        
+        // =============================
+        // Função para atualizar um planeta quando seus parâmetros são alterados
+        // =============================
+        function updatePlanet(planetData) {
+          let distance = planetData.semi_major_axis * distanceScale;
+          planetData.mesh.position.set(Math.cos(planetData.angle) * distance, 0, Math.sin(planetData.angle) * distance);
+          // Atualiza a linha de órbita: remove a antiga e recria uma nova
+          if (planetData.orbitLine) {
+            scene.remove(planetData.orbitLine);
+          }
+          let orbitPoints = [];
+          let numPoints = 200;
+          let a = planetData.semi_major_axis;
+          let e = planetData.eccentricity;
+          let i = deg2rad(planetData.inclination);
+          let Ω = deg2rad(planetData.ascending_node);
+          let ω = deg2rad(planetData.argument_of_periapsis);
+          for(let j=0; j<=numPoints; j++){
+            let f = 2*Math.PI*j/numPoints;
+            let r = a*(1-e*e)/(1+e*Math.cos(f));
+            let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+            let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+            let Z = r*(Math.sin(ω+f)*Math.sin(i));
+            orbitPoints.push(new THREE.Vector3(X*distanceScale, Z*distanceScale, Y*distanceScale));
+          }
+          let orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+          let orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+          let newOrbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
+          scene.add(newOrbitLine);
+          planetData.orbitLine = newOrbitLine;
+        }
+        
+        // =============================
+        // Cria o menu flutuante de edição dos planetas
+        // =============================
+        function createPlanetMenu() {
+          const menu = document.getElementById("planetMenu");
+          menu.innerHTML = "<h2>Edição dos Planetas</h2>";
+          planetsData.forEach(function(planetData) {
+            let entry = document.createElement("div");
+            entry.className = "planetEntry";
+            
+            // Cabeçalho: nome do planeta (clicável para expandir/ocultar os parâmetros)
+            let header = document.createElement("h3");
+            header.textContent = planetData.name;
+            header.addEventListener("click", function() {
+              let paramsDiv = entry.querySelector(".planetParams");
+              paramsDiv.style.display = paramsDiv.style.display === "none" ? "block" : "none";
+            });
+            entry.appendChild(header);
+            
+            // Container com os parâmetros editáveis
+            let params = document.createElement("div");
+            params.className = "planetParams";
+            params.style.display = "none";
+            
+            function createField(labelText, fieldName, step = 0.1) {
+              let labelElem = document.createElement("label");
+              labelElem.textContent = labelText + ": ";
+              let input = document.createElement("input");
+              input.type = "number";
+              input.step = step;
+              input.value = planetData[fieldName];
+              input.addEventListener("change", function() {
+                planetData[fieldName] = parseFloat(this.value);
+                updatePlanet(planetData);
+              });
+              labelElem.appendChild(input);
+              return labelElem;
+            }
+            
+            params.appendChild(createField("Semi-eixo", "semi_major_axis", 0.01));
+            params.appendChild(createField("Excentricidade", "eccentricity", 0.001));
+            params.appendChild(createField("Inclinação", "inclination", 0.1));
+            params.appendChild(createField("Nó Asc.", "ascending_node", 0.1));
+            params.appendChild(createField("Arg. Periapsis", "argument_of_periapsis", 0.1));
+            params.appendChild(createField("Anomalia", "mean_anomaly", 0.1));
+            params.appendChild(createField("Período Orbital", "orbital_period", 0.1));
+            params.appendChild(createField("Período Rotação", "rotation_period", 0.1));
+            params.appendChild(createField("Inclinação Axial", "axial_tilt", 0.1));
+            params.appendChild(createField("Tamanho", "size", 0.1));
+            
+            entry.appendChild(params);
+            menu.appendChild(entry);
           });
         }
         
@@ -338,14 +483,13 @@
           let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
           
-          // Rotação simples dos planetas
+          // Rotaciona os planetas (simples rotação em torno do próprio eixo)
           planetsData.forEach(function(planetData) {
-            if (planetData.mesh) {
+            if(planetData.mesh) {
               planetData.mesh.rotation.y += 0.01;
             }
           });
           
-          // Atualiza os controles e renderiza a cena
           controls.target.copy(sun.position);
           controls.update();
           renderer.render(scene, camera);
