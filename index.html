@@ -86,28 +86,113 @@
       #timeSlider {
         width: 100%;
       }
+      /* Estilos para as abas de configuração dos planetas e luas */
+      #planetTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin-bottom: 8px;
+      }
+      #planetTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 6px 10px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 14px;
+        border-bottom: 2px solid transparent;
+      }
+      #planetTabs button.active {
+        color: #fff;
+        border-color: #00aced;
+      }
+      .planetContent {
+        display: none;
+      }
+      .planetContent.active {
+        display: block;
+      }
+      .configField {
+        margin-bottom: 8px;
+      }
+      .configField label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      .configField input {
+        width: 100%;
+        padding: 4px;
+        font-size: 13px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #222;
+        color: #eee;
+      }
+      .colorPicker {
+        width: 100%;
+        height: 30px;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      .loadTextureBtn {
+        margin-top: 4px;
+        padding: 4px 8px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .moonTabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid #444;
+        margin: 8px 0;
+      }
+      .moonTabs button {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        color: #ccc;
+        cursor: pointer;
+        font-size: 12px;
+        border-bottom: 2px solid transparent;
+      }
+      .moonTabs button.active {
+        color: #fff;
+        border-color: #f39c12;
+      }
+      .moonContent {
+        display: none;
+      }
+      .moonContent.active {
+        display: block;
+      }
+      .sectionTitle {
+        font-size: 14px;
+        margin: 8px 0 4px;
+        border-bottom: 1px solid #555;
+        padding-bottom: 2px;
+      }
     </style>
   </head>
   <body>
     <!-- Botão de Configuração -->
     <div id="configButton">⚙️</div>
-    <!-- Painel de Configuração (ainda sem planetas) -->
+    <!-- Painel de Configuração (inicialmente sem planetas) -->
     <div id="configPanel">
       <header>
         <h3>Configuração do Sistema</h3>
         <button id="closeConfig">X</button>
       </header>
-      <!-- Esses elementos (tabs e conteúdos) serão preenchidos quando o utilizador adicionar planetas -->
       <div id="planetTabs"></div>
       <div id="planetContents"></div>
     </div>
     <!-- Menu de Controlo à Esquerda -->
     <div id="ui">
-      <!-- Dropdown para selecionar o planeta em destaque (inicialmente vazio) -->
       <select id="highlightSelect"></select>
-      <!-- Campo para inserção manual da data -->
       <input type="date" id="dateInput">
-      <!-- Slider para controlo temporal (valores de -4 a +4) -->
       <div>
         <input type="range" id="timeSlider" min="-4" max="4" step="1" value="0">
       </div>
@@ -117,19 +202,16 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
       (function(){
-        // Cria a cena
+        // Cria a cena, câmara e renderer
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-        // Cria a câmara
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
         camera.position.set(0,200,500);
-        // Cria o renderer e adiciona-o ao documento
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
-        // Controles
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -140,7 +222,10 @@
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        // Variáveis de controlo do tempo
+        // Adiciona uma luz ambiente para iluminar os MeshStandardMaterials
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambientLight);
+        // Variáveis temporais
         const refDate = new Date();
         let simulationTime = 0;
         const speedMapping = {"-4": -3650,"-3": -365,"-2": -30,"-1": -10,"0": 1,"1": 10,"2": 30,"3": 365,"4": 3650};
@@ -163,16 +248,43 @@
           let yyyy = date.getFullYear();
           return dd + "-" + mm + "-" + yyyy;
         }
-        // Criação do Sol (utilizando cor amarela para garantir visibilidade)
+        // Funções auxiliares
+        function deg2rad(deg) { return deg * Math.PI/180; }
+        function solveKepler(M, e, tolerance=1e-6) {
+          let E = M, delta = 1;
+          while(Math.abs(delta) > tolerance) {
+            delta = (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E));
+            E = E - delta;
+          }
+          return E;
+        }
+        // Cria o Sol (usa MeshBasicMaterial com cor amarela)
         const sunGeometry = new THREE.SphereGeometry(10,32,32);
         const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
         sun.castShadow = false;
         sun.receiveShadow = false;
         scene.add(sun);
-        // Array de planetas (inicialmente vazio)
+        // Array para planetas (inicialmente vazio)
         let planets = [];
-        // Dropdown para selecionar o planeta em destaque
+        // Funções para atualizar cor e textura
+        function updateObjectColor(object, color) {
+          if(object && object.material) {
+            object.material.color.set(color);
+            object.material.needsUpdate = true;
+          }
+        }
+        function updateObjectTexture(object, url) {
+          if(object && object.material) {
+            new THREE.TextureLoader().load(url, function(tex) {
+              object.material.map = tex;
+              object.material.needsUpdate = true;
+            });
+          }
+        }
+        function planetDataHasTexture(planet) { return !!planet.texture; }
+        function planetDataHasColor(planet) { return !!planet.color; }
+        // Dropdown para destacar planeta
         const highlightSelect = document.getElementById("highlightSelect");
         function atualizarDropdownDestaque() {
           highlightSelect.innerHTML = "";
@@ -186,9 +298,9 @@
         }
         atualizarDropdownDestaque();
         highlightSelect.addEventListener("change", function(){
-          // O alvo do zoom será atualizado automaticamente
+          // Alvo do zoom atualizado automaticamente
         });
-        // Elementos da interface de configuração (tabs e conteúdos)
+        // Interface de configuração (tabs)
         const configButton = document.getElementById("configButton");
         const configPanel = document.getElementById("configPanel");
         const closeConfig = document.getElementById("closeConfig");
@@ -218,8 +330,6 @@
             let divContent = document.createElement("div");
             divContent.classList.add("planetContent");
             divContent.dataset.index = index;
-            // Aqui, os campos podem ser adicionados para editar os parâmetros (distância, excentricidade, etc.)
-            // Neste exemplo, só os valores básicos são exibidos.
             let aviso = document.createElement("p");
             aviso.textContent = "Configuração do planeta " + planeta.name;
             divContent.appendChild(aviso);
@@ -228,7 +338,6 @@
           let btnAddPlaneta = document.createElement("button");
           btnAddPlaneta.textContent = "➕";
           btnAddPlaneta.addEventListener("click", function(){
-            // Cria um novo planeta com valores padrão
             let novoPlaneta = {
               name: "Novo Planeta",
               distanciaAU: 1,
@@ -261,7 +370,7 @@
           });
         }
         atualizarTabsPlanetas();
-        // Botões de controlo da interface
+        // Controlo do painel de configuração
         configButton.addEventListener("click", () => {
           configPanel.style.display = configPanel.style.display === "none" ? "block" : "none";
         });
@@ -295,16 +404,14 @@
         function animate() {
           requestAnimationFrame(animate);
           let now = performance.now();
-          let dt = (now - lastFrameTime) / 1000;
+          let dt = (now - lastFrameTime)/1000;
           lastFrameTime = now;
           let sliderValue = timeSlider.value;
           let effectiveSpeed = speedMapping[sliderValue];
           simulationTime += dt * effectiveSpeed;
-          let simDate = new Date(refDate.getTime() + simulationTime * 86400000);
+          let simDate = new Date(refDate.getTime() + simulationTime*86400000);
           if(document.activeElement !== dateInput)
             dateInput.value = formatForInput(simDate);
-          // Atualiza posição do Sol (fixo, neste exemplo)
-          // Atualiza planetas, se houver (aqui o array está vazio inicialmente)
           planets.forEach(planeta => {
             let pos = (function(planet, time) {
               let a = planet.a, e = planet.e, i = deg2rad(planet.i),
@@ -312,7 +419,7 @@
                   period = planet.period;
               let n = 2*Math.PI/period;
               let M = (M0+n*time)%(2*Math.PI);
-              let E = solveKepler(M,e);
+              let E = solveKepler(M, e);
               let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
               let r = a*(1-e*Math.cos(E));
               let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
@@ -351,6 +458,27 @@
         }
         animate();
       })();
+      // Funções auxiliares para atualizar cor e textura
+      function updateObjectColor(object, color) {
+        if(object && object.material) {
+          object.material.color.set(color);
+          object.material.needsUpdate = true;
+        }
+      }
+      function updateObjectTexture(object, url) {
+        if(object && object.material) {
+          new THREE.TextureLoader().load(url, function(tex) {
+            object.material.map = tex;
+            object.material.needsUpdate = true;
+          });
+        }
+      }
+      function planetDataHasTexture(planet) {
+        return !!planet.texture;
+      }
+      function planetDataHasColor(planet) {
+        return !!planet.color;
+      }
     </script>
   </body>
 </html>
