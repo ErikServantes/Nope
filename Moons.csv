@@ -1,2 +1,3 @@
 id,planet_id,name,orbit_distance,orbital_eccentricity,orbital_inclination,orbital_period,rotation_period,size,segments,texture_file,displacement_file,fallback_color
-1,1,Lua,8,0.0549,5.145,27.321,27.321,1,160,moon-texture.jpg,moon-displacement.jpg,#ffffff
+1,3,Lua,8,0,0,10,10,0.875,160,earth-moon-texture.jpg,earth-moon-displacement.jpg,#bbbbbb
+2,5,Lua,4.5,0,0,0.25,0.25,0.1875,160,nope-moon-texture.jpg,nope-moon-displacement.jpg,#87ceeb
