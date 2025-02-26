@@ -86,7 +86,7 @@
       #timeSlider {
         width: 100%;
       }
-      /* Abas para configuração de planetas */
+      /* Abas para configuração dos planetas */
       #planetTabs {
         display: flex;
         overflow-x: auto;
@@ -130,6 +130,7 @@
         background: #222;
         color: #eee;
       }
+      /* Seletor de cor */
       .colorPicker {
         width: 100%;
         height: 30px;
@@ -137,6 +138,7 @@
         padding: 0;
         cursor: pointer;
       }
+      /* Botão para carregar textura */
       .loadTextureBtn {
         margin-top: 4px;
         padding: 4px 8px;
@@ -205,7 +207,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
       (function(){
-        // Cria a cena, câmara e renderer
+        // Cena, câmara, renderer e controles
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 20000);
@@ -225,13 +227,13 @@
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        // Adiciona uma luz ambiente para MeshStandardMaterial
+        // Luz ambiente para iluminar os materiais
         const ambientLight = new THREE.AmbientLight(0xffffff, 1);
         scene.add(ambientLight);
-        // Variáveis temporais
+        // Variáveis de tempo
         const refDate = new Date();
         let simulationTime = 0;
-        const speedMapping = {"-4": -3650,"-3": -365,"-2": -30,"-1": -10,"0": 1,"1": 10,"2": 30,"3": 365,"4": 3650};
+        const speedMapping = {"-4": -3650, "-3": -365, "-2": -30, "-1": -10, "0": 1, "1": 10, "2": 30, "3": 365, "4": 3650};
         const timeSlider = document.getElementById("timeSlider");
         const dateInput = document.getElementById("dateInput");
         function formatForInput(date) {
@@ -261,7 +263,7 @@
           }
           return E;
         }
-        // Cria o Sol
+        // Cria o Sol (usando cor amarela)
         const sunGeometry = new THREE.SphereGeometry(10,32,32);
         const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -270,23 +272,7 @@
         scene.add(sun);
         // Array para planetas (inicialmente vazio)
         let planets = [];
-        // Dropdown para destacar planeta
-        const highlightSelect = document.getElementById("highlightSelect");
-        function atualizarDropdownDestaque() {
-          highlightSelect.innerHTML = "";
-          planets.sort((p1,p2)=>p1.a - p2.a);
-          planets.forEach((p,i)=>{
-            let option = document.createElement("option");
-            option.value = p.name;
-            option.textContent = (i+1) + " - " + p.name;
-            highlightSelect.appendChild(option);
-          });
-        }
-        atualizarDropdownDestaque();
-        highlightSelect.addEventListener("change", function(){
-          // Alvo do zoom atualizado automaticamente
-        });
-        // Funções para atualizar cor e textura
+        // Funções para atualizar cor e textura de um objeto
         function updateObjectColor(object, color) {
           if(object && object.material) {
             object.material.color.set(color);
@@ -301,11 +287,27 @@
             });
           }
         }
-        // Função para criar um planeta – os valores são exibidos em UA (distância) e Terras (tamanho)
+        // Dropdown para selecionar o planeta em destaque
+        const highlightSelect = document.getElementById("highlightSelect");
+        function atualizarDropdownDestaque() {
+          highlightSelect.innerHTML = "";
+          planets.sort((p1, p2) => p1.a - p2.a);
+          planets.forEach((p, i) => {
+            let option = document.createElement("option");
+            option.value = p.name;
+            option.textContent = (i+1) + " - " + p.name;
+            highlightSelect.appendChild(option);
+          });
+        }
+        atualizarDropdownDestaque();
+        highlightSelect.addEventListener("change", function(){
+          // Alvo do zoom será atualizado automaticamente
+        });
+        // Função para criar um planeta – cria o objeto e a linha de órbita
+        // Os parâmetros são exibidos em UA (distância) e em Terras (tamanho)
         function criarPlaneta(planetData) {
-          // Atribui os valores de simulação
-          planetData.a = planetData.distanciaAU; 
-          planetData.size = planetData.tamanhoTerra;
+          planetData.a = planetData.distanciaAU; // UA
+          planetData.size = planetData.tamanhoTerra; // em Terras
           planetData._baseSize = planetData.size;
           let segments = (["Terra","Marte","Nope"].includes(planetData.name)) ? 320 : 16;
           let geometry = new THREE.SphereGeometry(planetData.size, segments, segments);
@@ -335,7 +337,7 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          // Linha de órbita
+          // Criação da linha de órbita
           let pts = (function(planet, numPoints=200) {
             let pts = [];
             let a = planet.distanciaAU, e = planet.e, i = deg2rad(planet.i),
@@ -381,7 +383,7 @@
         }
         // Inicialmente, nenhum planeta pré-carregado
         planets = [];
-        // Atualiza o dropdown de destaque
+        // Função para atualizar o dropdown de destaque
         function atualizarDropdownDestaque() {
           highlightSelect.innerHTML = "";
           planets.sort((p1,p2)=>p1.a - p2.a);
@@ -396,7 +398,7 @@
         highlightSelect.addEventListener("change", function(){
           // Alvo do zoom atualizado automaticamente
         });
-        // Interface de configuração: atualizar abas
+        // Interface de configuração: criação das abas e dos formulários de cada planeta
         const configButton = document.getElementById("configButton");
         const configPanel = document.getElementById("configPanel");
         const closeConfig = document.getElementById("closeConfig");
@@ -410,32 +412,144 @@
             aviso.textContent = "Nenhum planeta adicionado.";
             planetContentsDiv.appendChild(aviso);
           }
-          planets.forEach((planeta, index) => {
+          planets.forEach((planeta, index)=>{
+            // Cria a aba com o nome
             let btnTab = document.createElement("button");
             btnTab.textContent = (index+1) + " - " + planeta.name;
-            btnTab.addEventListener("click", () => { selecionarTabPlaneta(index); });
+            btnTab.addEventListener("click", ()=>{ selecionarTabPlaneta(index); });
             btnTab.ondblclick = function(){
               let novoNome = prompt("Insira o novo nome para este planeta:", planeta.name);
-              if(novoNome) {
+              if(novoNome){
                 planeta.name = novoNome;
                 atualizarTabsPlanetas();
                 atualizarDropdownDestaque();
               }
             };
             planetTabsDiv.appendChild(btnTab);
+            // Cria o formulário de configuração
             let divContent = document.createElement("div");
             divContent.classList.add("planetContent");
             divContent.dataset.index = index;
-            let info = document.createElement("p");
-            info.textContent = "Configuração do planeta " + planeta.name;
-            divContent.appendChild(info);
+            // Campos para editar parâmetros do planeta
+            let campos = [
+              { key:"distanciaAU", label:"Distância ao Sol (UA)" },
+              { key:"e", label:"Excentricidade" },
+              { key:"i", label:"Inclinação Orbital (graus)" },
+              { key:"Ω", label:"Longitude do Nodo (graus)" },
+              { key:"ω", label:"Argumento do Periélio (graus)" },
+              { key:"M0", label:"Anomalia Inicial (graus)" },
+              { key:"period", label:"Período Orbital (dias)" },
+              { key:"rotationPeriod", label:"Período de Rotação (horas)" },
+              { key:"axialTilt", label:"Inclinação do Eixo (graus)" },
+              { key:"tamanhoTerra", label:"Tamanho (Terras)" }
+            ];
+            campos.forEach(campo=>{
+              let divCampo = document.createElement("div");
+              divCampo.classList.add("configField");
+              let lbl = document.createElement("label");
+              lbl.textContent = campo.label;
+              let input = document.createElement("input");
+              input.type = "number";
+              input.step = "any";
+              if(campo.key==="distanciaAU"){
+                input.value = planeta.distanciaAU || "";
+              } else if(campo.key==="tamanhoTerra"){
+                input.value = planeta.tamanhoTerra || "";
+              } else {
+                input.value = planeta[campo.key] || 0;
+              }
+              input.addEventListener("change", function(){
+                let value = parseFloat(this.value);
+                if(campo.key==="distanciaAU"){
+                  planeta.distanciaAU = value;
+                  planeta.a = value;
+                } else if(campo.key==="tamanhoTerra"){
+                  let oldBase = planeta._baseSize || planeta.tamanhoTerra;
+                  planeta.tamanhoTerra = value;
+                  let newScale = value / oldBase;
+                  if(planeta.pivot){
+                    planeta.pivot.scale.set(newScale,newScale,newScale);
+                  } else {
+                    planeta.mesh.scale.set(newScale,newScale,newScale);
+                  }
+                  planeta.size = value;
+                } else {
+                  planeta[campo.key] = value;
+                }
+                // Se alterarmos parâmetros orbitais, atualizamos a linha de órbita
+                if(["distanciaAU","e","i","Ω","ω"].includes(campo.key)){
+                  scene.remove(planeta.linhaOrbita);
+                  let pts = (function(planet, numPoints=200){
+                    let pts = [];
+                    let a = planet.distanciaAU, e = planet.e, i = deg2rad(planet.i),
+                        Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω);
+                    for(let j=0; j<=numPoints; j++){
+                      let f = 2*Math.PI*j/numPoints;
+                      let r = a*(1-e*e)/(1+e*Math.cos(f));
+                      let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+                      let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+                      let Z = r*(Math.sin(ω+f)*Math.sin(i));
+                      let scale = 50;
+                      pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+                    }
+                    return pts;
+                  })(planeta);
+                  let geo = new THREE.BufferGeometry().setFromPoints(pts);
+                  let mat = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+                  let linha = new THREE.LineLoop(geo, mat);
+                  scene.add(linha);
+                  planeta.linhaOrbita = linha;
+                }
+              });
+              divCampo.appendChild(lbl);
+              divCampo.appendChild(input);
+              divContent.appendChild(divCampo);
+            });
+            // Seletor de cor
+            let divCor = document.createElement("div");
+            divCor.classList.add("configField");
+            let lblCor = document.createElement("label");
+            lblCor.textContent = "Cor";
+            let inputCor = document.createElement("input");
+            inputCor.type = "color";
+            inputCor.classList.add("colorPicker");
+            inputCor.value = planeta.color || "#" + ((fallbackColors[planeta.name] || fallbackColors.default) >>> 0).toString(16).padStart(6,"0");
+            inputCor.addEventListener("change", function(){
+              planeta.color = this.value;
+              if(planeta.pivot){
+                updateObjectColor(planeta.tiltGroup.children[0], this.value);
+              } else {
+                updateObjectColor(planeta.mesh, this.value);
+              }
+            });
+            divCor.appendChild(lblCor);
+            divCor.appendChild(inputCor);
+            divContent.appendChild(divCor);
+            // Botão para carregar textura para o planeta
+            let btnCarregarTextura = document.createElement("button");
+            btnCarregarTextura.textContent = "Carregar Textura";
+            btnCarregarTextura.classList.add("loadTextureBtn");
+            btnCarregarTextura.addEventListener("click", function(){
+              let url = prompt("Insira a URL da textura para " + planeta.name + ":");
+              if(url){
+                planeta.texture = url;
+                if(planeta.pivot){
+                  updateObjectTexture(planeta.tiltGroup.children[0], url);
+                } else {
+                  updateObjectTexture(planeta.mesh, url);
+                }
+              }
+            });
+            divContent.appendChild(btnCarregarTextura);
+            // (Opcional) Aqui poderíamos acrescentar campos para configurar luas
+            // Por simplicidade, este exemplo foca na configuração do planeta.
             planetContentsDiv.appendChild(divContent);
           });
+          // Botão para adicionar novo planeta
           let btnAddPlaneta = document.createElement("button");
           btnAddPlaneta.textContent = "➕";
           btnAddPlaneta.addEventListener("click", function(){
-            console.log("Clique no botão +");
-            // Valores padrão: 1 UA de distância e 1 Terra de tamanho
+            console.log("Botão + clicado");
             let novoPlaneta = {
               name: "Novo Planeta",
               distanciaAU: 1,
@@ -475,7 +589,7 @@
         closeConfig.addEventListener("click", () => {
           configPanel.style.display = "none";
         });
-        // Sistema de Destaque – alvo do zoom
+        // Sistema de Destaque – obtém o alvo do zoom
         function getZoomTarget() {
           let selectedName = highlightSelect.value;
           let p = planets.find(p => p.name === selectedName);
@@ -517,7 +631,7 @@
                   period = planet.period;
               let n = 2*Math.PI/period;
               let M = (M0+n*time)%(2*Math.PI);
-              let E = solveKepler(M, e);
+              let E = solveKepler(M,e);
               let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
               let r = a*(1-e*Math.cos(E));
               let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
@@ -529,50 +643,3 @@
             if(planeta.pivot)
               planeta.pivot.position.copy(pos);
             else
-              planeta.mesh.position.copy(pos);
-          });
-          planets.forEach(planeta => {
-            if(planeta.rotationPeriod) {
-              let rotDias = planeta.rotationPeriod/24;
-              let angle = simulationTime*(2*Math.PI/rotDias);
-              if(planeta.pivot && planeta.tiltGroup)
-                planeta.tiltGroup.rotation.y = angle;
-              else
-                planeta.mesh.rotation.y = angle;
-            }
-          });
-          planets.forEach(planeta => {
-            if(planeta.luas) {
-              planeta.luas.forEach(lua => {
-                let angleLua = (simulationTime*2*Math.PI/lua.period)%(2*Math.PI);
-                if(lua.grupoOrbita)
-                  lua.grupoOrbita.rotation.y = angleLua;
-              });
-            }
-          });
-          updateControlsTarget();
-          controls.update();
-          renderer.render(scene, camera);
-        }
-        animate();
-      })();
-      // Funções auxiliares para atualizar cor e textura
-      function updateObjectColor(object, color) {
-        if(object && object.material) {
-          object.material.color.set(color);
-          object.material.needsUpdate = true;
-        }
-      }
-      function updateObjectTexture(object, url) {
-        if(object && object.material) {
-          new THREE.TextureLoader().load(url, function(tex) {
-            object.material.map = tex;
-            object.material.needsUpdate = true;
-          });
-        }
-      }
-      function planetDataHasTexture(planet) { return !!planet.texture; }
-      function planetDataHasColor(planet) { return !!planet.color; }
-    </script>
-  </body>
-</html>
