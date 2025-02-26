@@ -106,7 +106,7 @@
         background: #222;
         color: #eee;
       }
-      /* Seletor de cor */
+      /* Seletor de cor – input type="color" */
       .colorPicker {
         width: 100%;
         height: 30px;
@@ -184,7 +184,7 @@
   <body>
     <!-- Botão de Configuração -->
     <div id="configButton">⚙️</div>
-    <!-- Painel de Configuração -->
+    <!-- Painel de Configuração (inicialmente sem planetas) -->
     <div id="configPanel">
       <header>
         <h3>Configuração do Sistema</h3>
@@ -290,7 +290,6 @@
         // Criação do Sol
         // =============================
         const sunGeometry = new THREE.SphereGeometry(50,32,32);
-        // Tente carregar textura; se falhar, usa cor amarela
         let sunMaterial = new THREE.MeshBasicMaterial({ 
           map: new THREE.TextureLoader().load("sun-texture.jpg", undefined, undefined, () => {
             sunMaterial.color.set(0xffff00);
@@ -302,35 +301,51 @@
         scene.add(sun);
         
         // =============================
-        // Variável para armazenar planetas (inicialmente vazio)
+        // Array para armazenar planetas (inicialmente vazio)
         // =============================
         let planets = [];
         
+        // Função para atualizar a cor de um objeto (mesh)
+        function updateObjectColor(object, color) {
+          if(object && object.material) {
+            object.material.color.set(color);
+            object.material.needsUpdate = true;
+          }
+        }
+        
+        // Função para atualizar a textura de um objeto (mesh)
+        function updateObjectTexture(object, url) {
+          if(object && object.material) {
+            new THREE.TextureLoader().load(url, function(tex){
+              object.material.map = tex;
+              object.material.needsUpdate = true;
+            });
+          }
+        }
+        
         // =============================
         // Função para criar um planeta
-        // Os valores exibidos: distância ao Sol (UA) e tamanho (em Terras)
-        // Armazena o valor base em _baseSize para atualizar o scale
+        // Os valores exibidos: distância ao Sol em UA e tamanho em Terras.
+        // planetData deve ter: name, distanciaAU, e, i, Ω, ω, M0, period, rotationPeriod, axialTilt, tamanhoTerra, color (hexadecimal) e opcionalmente texture.
+        // O objeto é criado e seu material é guardado para atualização dinâmica.
         // =============================
         function criarPlaneta(planetData) {
-          // planetData deve ter: name, distanciaAU, e, i, Ω, ω, M0, period, rotationPeriod, axialTilt, tamanhoTerra, color, (opcional texture)
-          planetData.a = planetData.distanciaAU; // UA
-          planetData.size = planetData.tamanhoTerra; // em unidades de Terra
-          // Guarda o valor base para cálculo do scale
-          planetData._baseSize = planetData.size;
+          planetData.a = planetData.distanciaAU; // 1 UA = 1 unidade na simulação
+          planetData.size = planetData.tamanhoTerra; // 1 Terra = 1 unidade
+          planetData._baseSize = planetData.size; // guarda valor base
           
           let segmentos = (["Terra","Marte","Nope"].includes(planetData.name)) ? 320 : 16;
           let geometry = new THREE.SphereGeometry(planetData.size, segmentos, segmentos);
           let materialOptions = { color: planetData.color || fallbackColors[planetData.name] || fallbackColors.default };
           if (planetData.texture) {
-            materialOptions.map = new THREE.TextureLoader().load(planetData.texture, undefined, undefined, ()=> {
-              // fallback caso falhe
+            materialOptions.map = new THREE.TextureLoader().load(planetData.texture, undefined, undefined, () => {
               materialOptions.color = fallbackColors[planetData.name] || fallbackColors.default;
             });
           }
           let material = new THREE.MeshStandardMaterial(materialOptions);
           
           let mesh;
-          if(["Terra","Nope"].includes(planetData.name)) {
+          if(["Terra", "Nope"].includes(planetData.name)) {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -351,7 +366,7 @@
             planetData.mesh = mesh;
           }
           
-          // Criação da linha da órbita
+          // Linha de órbita
           let pts = (function(planet, numPoints=200) {
             let pts = [];
             let a = planet.a, e = planet.e, i = deg2rad(planet.i),
@@ -384,8 +399,8 @@
           scene.add(grupoOrbita);
           let geometry = new THREE.SphereGeometry(luaData.size || (planeta.size/4), 160, 160);
           let materialOptions = { color: luaData.color || 0x888888 };
-          if (luaData.texture) {
-            materialOptions.map = new THREE.TextureLoader().load(luaData.texture, undefined, undefined, ()=> {
+          if(luaData.texture) {
+            materialOptions.map = new THREE.TextureLoader().load(luaData.texture, undefined, undefined, () => {
               materialOptions.color = 0x888888;
             });
           }
@@ -393,7 +408,7 @@
           let mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          mesh.position.set(luaData.distance || (planeta.size + 2), 0, 0);
+          mesh.position.set(luaData.distance || (planeta.size+2), 0, 0);
           grupoOrbita.add(mesh);
           luaData.grupoOrbita = grupoOrbita;
           luaData.mesh = mesh;
@@ -420,7 +435,7 @@
         }
         atualizarDropdownDestaque();
         highlightSelect.addEventListener("change", function(){
-          // O alvo do zoom será atualizado na função getZoomTarget()
+          // O alvo do zoom é atualizado na função getZoomTarget()
         });
         
         // =============================
@@ -457,7 +472,6 @@
             let divContent = document.createElement("div");
             divContent.classList.add("planetContent");
             divContent.dataset.index = index;
-            // Campos de configuração – distância (UA), excentricidade, inclinação, nodo, periélio, anomalia, período, período de rotação, inclinação axial, tamanho (em Terras) e cor.
             let campos = [
               { key:"distanciaAU", label:"Distância ao Sol (UA)" },
               { key:"e", label:"Excentricidade" },
@@ -491,9 +505,10 @@
                   planeta.distanciaAU = value;
                   planeta.a = value;
                 } else if(campo.key === "tamanhoTerra") {
+                  let oldBase = planeta._baseSize || planeta.tamanhoTerra;
                   planeta.tamanhoTerra = value;
-                  // Atualiza o scale do objeto: novo scale = novo tamanho / _baseSize
-                  let newScale = value / planeta._baseSize;
+                  planeta._baseSize = oldBase;
+                  let newScale = value / oldBase;
                   if(planeta.pivot) {
                     planeta.pivot.scale.set(newScale, newScale, newScale);
                   } else {
@@ -503,7 +518,7 @@
                 } else {
                   planeta[campo.key] = value;
                 }
-                if(["distanciaAU", "e", "i", "Ω", "ω"].includes(campo.key)) {
+                if(["distanciaAU","e","i","Ω","ω"].includes(campo.key)) {
                   scene.remove(planeta.linhaOrbita);
                   let pts = (function(planet, numPoints=200) {
                     let pts = [];
@@ -532,7 +547,7 @@
               divCampo.appendChild(input);
               divContent.appendChild(divCampo);
             });
-            // Campo para selecionar a cor do planeta
+            // Campo para selecionar a cor
             let divCor = document.createElement("div");
             divCor.classList.add("configField");
             let lblCor = document.createElement("label");
@@ -543,14 +558,11 @@
             inputCor.value = planeta.color || "#" + ((fallbackColors[planeta.name] || fallbackColors.default) >>> 0).toString(16).padStart(6,"0");
             inputCor.addEventListener("change", function(){
               planeta.color = this.value;
-              if(!planetDataHasTexture(planeta)) {
-                if(planeta.pivot) {
-                  planeta.tiltGroup.children[0].material.color.set(this.value);
-                  planeta.tiltGroup.children[0].material.needsUpdate = true;
-                } else {
-                  planeta.mesh.material.color.set(this.value);
-                  planeta.mesh.material.needsUpdate = true;
-                }
+              // Atualiza a cor do material (independentemente de haver textura ou não)
+              if(planeta.pivot) {
+                updateObjectColor(planeta.tiltGroup.children[0], this.value);
+              } else {
+                updateObjectColor(planeta.mesh, this.value);
               }
             });
             divCor.appendChild(lblCor);
@@ -565,20 +577,16 @@
               let url = prompt("Insira a URL da textura para " + planeta.name + ":");
               if(url) {
                 planeta.texture = url;
-                let newTex = new THREE.TextureLoader().load(url, function(tex){
-                  if(planeta.pivot) {
-                    planeta.tiltGroup.children[0].material.map = tex;
-                    planeta.tiltGroup.children[0].material.needsUpdate = true;
-                  } else {
-                    planeta.mesh.material.map = tex;
-                    planeta.mesh.material.needsUpdate = true;
-                  }
-                });
+                if(planeta.pivot) {
+                  updateObjectTexture(planeta.tiltGroup.children[0], url);
+                } else {
+                  updateObjectTexture(planeta.mesh, url);
+                }
               }
             });
             divContent.appendChild(btnCarregarTextura);
             
-            // Se o planeta tiver luas, cria sub-tabs para elas
+            // Se houver luas, cria sub-tabs para elas
             let divLuas = document.createElement("div");
             divLuas.innerHTML = "<div class='sectionTitle'>Luas</div>";
             let luaTabs = document.createElement("div");
@@ -594,10 +602,10 @@
                 let divLuaContent = document.createElement("div");
                 divLuaContent.classList.add("moonContent");
                 let camposLua = [
-                  { key: "period", label: "Período Orbital (dias)" },
-                  { key: "distance", label: "Distância ao Planeta (unidades)" },
-                  { key: "size", label: "Diâmetro (Terras)" },
-                  { key: "color", label: "Cor" }
+                  { key:"period", label:"Período Orbital (dias)" },
+                  { key:"distance", label:"Distância ao Planeta (unidades)" },
+                  { key:"size", label:"Diâmetro (Terras)" },
+                  { key:"color", label:"Cor" }
                 ];
                 camposLua.forEach(campo => {
                   let divCampoLua = document.createElement("div");
@@ -605,12 +613,12 @@
                   let lblLua = document.createElement("label");
                   lblLua.textContent = campo.label;
                   let inputLua = document.createElement("input");
-                  inputLua.step = "any";
-                  if(campo.key === "color") {
+                  if(campo.key==="color") {
                     inputLua.type = "color";
                     inputLua.value = lua.color || "#" + (0x888888).toString(16).padStart(6,"0");
                   } else {
                     inputLua.type = "number";
+                    inputLua.step = "any";
                     if(campo.key === "distance") {
                       inputLua.value = lua.distance || lua.distancia || 0;
                     } else if(campo.key === "size") {
@@ -625,7 +633,6 @@
                       lua.distance = val;
                     } else if(campo.key === "size") {
                       lua.size = val;
-                      // Atualiza o scale da lua
                       let newScale = val / (lua._baseSize || 1);
                       if(lua.grupoOrbita) {
                         lua.mesh.scale.set(newScale, newScale, newScale);
@@ -634,8 +641,7 @@
                       }
                     } else if(campo.key === "color") {
                       lua.color = this.value;
-                      lua.mesh.material.color.set(this.value);
-                      lua.mesh.material.needsUpdate = true;
+                      updateObjectColor(lua.mesh, this.value);
                     } else {
                       lua[campo.key] = val;
                     }
@@ -644,7 +650,6 @@
                   divCampoLua.appendChild(inputLua);
                   divLuaContent.appendChild(divCampoLua);
                 });
-                // Botão para carregar textura para a lua
                 let btnCarregarTexturaLua = document.createElement("button");
                 btnCarregarTexturaLua.textContent = "Carregar Textura";
                 btnCarregarTexturaLua.classList.add("loadTextureBtn");
@@ -652,10 +657,7 @@
                   let url = prompt("Insira a URL da textura para " + lua.name + ":");
                   if(url) {
                     lua.texture = url;
-                    let newTex = new THREE.TextureLoader().load(url, function(tex){
-                      lua.mesh.material.map = tex;
-                      lua.mesh.material.needsUpdate = true;
-                    });
+                    updateObjectTexture(lua.mesh, url);
                   }
                 });
                 divLuaContent.appendChild(btnCarregarTexturaLua);
@@ -730,6 +732,9 @@
         // =============================
         // Controlo do Painel de Configuração
         // =============================
+        const configButton = document.getElementById("configButton");
+        const configPanel = document.getElementById("configPanel");
+        const closeConfig = document.getElementById("closeConfig");
         configButton.addEventListener("click", () => {
           configPanel.style.display = configPanel.style.display === "none" ? "block" : "none";
         });
@@ -738,7 +743,7 @@
         });
         
         // =============================
-        // Sistema de Destaque – determina o alvo do zoom a partir do dropdown
+        // Sistema de Destaque – obtém o alvo do zoom do dropdown
         // =============================
         function getZoomTarget() {
           let selectedName = highlightSelect.value;
@@ -755,13 +760,9 @@
           let vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
           let L = vector2.length();
           let t;
-          if(L > 200) {
-            t = 0;
-          } else if(L < 50) {
-            t = 1;
-          } else {
-            t = (200 - L) / 150;
-          }
+          if(L > 200) { t = 0; }
+          else if(L < 50) { t = 1; }
+          else { t = (200 - L) / 150; }
           let newTarget = new THREE.Vector3().lerpVectors(sun.position, targetPos, t);
           controls.target.lerp(newTarget, 0.05);
         }
@@ -788,38 +789,36 @@
               let a = planet.a, e = planet.e, i = deg2rad(planet.i),
                   Ω = deg2rad(planet.Ω), ω = deg2rad(planet.ω), M0 = deg2rad(planet.M0),
                   period = planet.period;
-              let n = 2 * Math.PI / period;
-              let M = (M0 + n * time) % (2 * Math.PI);
+              let n = 2*Math.PI/period;
+              let M = (M0+n*time)%(2*Math.PI);
               let E = solveKepler(M, e);
-              let f = 2 * Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
-              let r = a * (1 - e * Math.cos(E));
-              let X = r * (Math.cos(Ω)*Math.cos(ω+f) - Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Y = r * (Math.sin(Ω)*Math.cos(ω+f) + Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Z = r * (Math.sin(ω+f)*Math.sin(i));
+              let f = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+              let r = a*(1-e*Math.cos(E));
+              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
+              let Z = r*(Math.sin(ω+f)*Math.sin(i));
               let escala = 50;
               return new THREE.Vector3(X*escala, Z*escala, Y*escala);
             })(planeta, simulationTime);
-            if(planeta.pivot) {
+            if(planeta.pivot)
               planeta.pivot.position.copy(pos);
-            } else {
+            else
               planeta.mesh.position.copy(pos);
-            }
           });
           planets.forEach(planeta => {
             if(planeta.rotationPeriod) {
-              let rotDias = planeta.rotationPeriod / 24;
-              let angle = simulationTime * (2 * Math.PI / rotDias);
-              if(planeta.pivot && planeta.tiltGroup) {
+              let rotDias = planeta.rotationPeriod/24;
+              let angle = simulationTime * (2*Math.PI/rotDias);
+              if(planeta.pivot && planeta.tiltGroup)
                 planeta.tiltGroup.rotation.y = angle;
-              } else {
+              else
                 planeta.mesh.rotation.y = angle;
-              }
             }
           });
           planets.forEach(planeta => {
             if(planeta.luas) {
               planeta.luas.forEach(lua => {
-                let angleLua = (simulationTime * 2 * Math.PI / lua.period) % (2 * Math.PI);
+                let angleLua = (simulationTime*2*Math.PI/lua.period)%(2*Math.PI);
                 if(lua.grupoOrbita)
                   lua.grupoOrbita.rotation.y = angleLua;
               });
@@ -832,7 +831,23 @@
         }
         animate();
         
-        // Funções auxiliares para verificar se um planeta tem textura ou cor definida
+        // Funções auxiliares para atualizar cor e textura
+        function updateObjectColor(object, color) {
+          if(object && object.material) {
+            object.material.color.set(color);
+            object.material.needsUpdate = true;
+          }
+        }
+        function updateObjectTexture(object, url) {
+          if(object && object.material) {
+            new THREE.TextureLoader().load(url, function(tex){
+              object.material.map = tex;
+              object.material.needsUpdate = true;
+            });
+          }
+        }
+        
+        // Funções para verificar se o objeto tem textura ou cor definida
         function planetDataHasTexture(planet) {
           return !!planet.texture;
         }
