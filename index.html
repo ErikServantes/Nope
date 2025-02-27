@@ -442,7 +442,8 @@
               input.type = "number";
               input.step = step;
               input.value = planetData[fieldName];
-              input.addEventListener("change", function() {
+              // Usamos o evento "input" para atualizar em tempo real
+              input.addEventListener("input", function() {
                 planetData[fieldName] = parseFloat(this.value);
                 updatePlanet(planetData);
               });
