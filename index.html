@@ -221,7 +221,6 @@
         dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
         
-        // Formata a data como "AAAA-MM-DD"
         function formatDate(date) {
           const yyyy = date.getFullYear();
           const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -229,7 +228,6 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Mapeia o slider para o fator de aceleração (dias/segundo)
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
@@ -326,6 +324,7 @@
             case "Netuno":  size = 5; break;
             default:        size = 3;
           }
+          // Atribui o tamanho ao objeto para que possamos configurá-lo
           planetData.size = size;
           let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16;
           let geometry = new THREE.SphereGeometry(size, segments, segments);
@@ -548,7 +547,7 @@
         animate();
         
         // =============================
-        // Configuração do Menu (Painel Compacto)
+        // Configuração do Menu Compacto
         // =============================
         configButton.addEventListener('click', function() {
           configMenu.style.display = 'block';
@@ -558,7 +557,7 @@
           configMenu.style.display = 'none';
         });
         
-        // Mapear rótulos mais descritivos para cada propriedade
+        // Mapear rótulos descritivos para cada propriedade
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -568,12 +567,21 @@
           M0: "Anomalia Média Inicial (°)",
           period: "Período Orbital (dias)",
           rotationPeriod: "Período de Rotação (horas)",
-          axialTilt: "Inclinação do Eixo (°)"
+          axialTilt: "Inclinação do Eixo (°)",
+          size: "Tamanho do Planeta"
         };
+        
+        // Para garantir que todos os planetas tenham "axialTilt", se não definido, atribuir 0.
+        planetsData.forEach(planet => {
+          if (planet.axialTilt === undefined) {
+            planet.axialTilt = 0;
+          }
+        });
         
         function buildConfigMenu() {
           configTabs.innerHTML = '';
           configContent.innerHTML = '';
+          // Cria uma aba para cada planeta
           planetsData.forEach((planet, index) => {
             const tab = document.createElement('div');
             tab.className = 'config-tab';
@@ -594,10 +602,8 @@
         
         function buildConfigContent(planet) {
           configContent.innerHTML = '';
-          const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod'];
-          if (planet.axialTilt !== undefined) {
-            props.push('axialTilt');
-          }
+          // Lista de propriedades a exibir – inclui axialTilt e size para todos
+          const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
           props.forEach(prop => {
             const label = document.createElement('label');
             label.textContent = (propertyLabels[prop] || prop) + ':';
