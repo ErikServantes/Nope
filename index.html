@@ -59,12 +59,21 @@
           margin-bottom: 8px;
         }
       }
+      /* Em resolução vertical (portrait), duplica os tamanhos dos controles */
+      @media (orientation: portrait) and (max-width: 768px) {
+        #ui select,
+        #ui input[type="date"],
+        #ui input[type="range"] {
+          font-size: 28px;  /* dobra de 14px para 28px */
+          padding: 8px;     /* dobra de 4px para 8px */
+        }
+      }
     </style>
   </head>
   <body>
     <!-- Interface de Controle: Dropdown (alvo), Calendário e Slider (nesta ordem) -->
     <div id="ui">
-      <!-- Dropdown para escolher o centro do zoom (sem opções de luas) -->
+      <!-- Dropdown para escolher o centro do zoom (somente Sol e planetas) -->
       <select id="targetSelect">
         <option value="Sol">Sol</option>
         <option value="Mercúrio">Mercúrio</option>
@@ -383,7 +392,6 @@
         const targetObjects = {};
         targetObjects["Sol"] = sun;
         planets.forEach(function(planet) {
-          // Para Terra e Nope, usamos o pivot (que já inclui a inclinação)
           targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
         });
         // Define o alvo atual com base na seleção do dropdown (padrão: "Nope")
