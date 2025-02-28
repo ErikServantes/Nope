@@ -21,27 +21,31 @@
         padding: 10px;
         border-radius: 5px;
       }
-      /* Estilos para os elementos da UI */
+      /* Estilos para os elementos da UI, exibidos em bloco (empilhados) */
       #ui select,
       #ui input[type="date"],
       #ui input[type="range"] {
+        display: block;
+        width: 100%;
         font-size: 14px;
         color: white;
         margin-bottom: 8px;
       }
-      /* Estilo específico para o calendário, garantindo contraste */
+      /* Dropdown e calendário com bom contraste */
+      #ui select,
       #ui input[type="date"] {
         background-color: #333;
         border: 1px solid #555;
         padding: 4px;
         border-radius: 3px;
       }
+      /* O slider mantém seu estilo padrão */
     </style>
   </head>
   <body>
-    <!-- Interface de Controle: Dropdown, Calendário e Slider (nesta ordem) -->
+    <!-- Interface de Controle: Dropdown (alvo), Calendário e Slider (nesta ordem) -->
     <div id="ui">
-      <!-- Dropdown para escolher o centro do zoom -->
+      <!-- Dropdown para escolher o centro do zoom (sem opções de luas) -->
       <select id="targetSelect">
         <option value="Sol">Sol</option>
         <option value="Mercúrio">Mercúrio</option>
@@ -53,11 +57,9 @@
         <option value="Saturno">Saturno</option>
         <option value="Urano">Urano</option>
         <option value="Netuno">Netuno</option>
-        <option value="Lua da Terra">Lua da Terra</option>
-        <option value="Lua de Nope">Lua de Nope</option>
       </select>
       <!-- Calendário (input date) -->
-      <input type="date" id="dateInput"><br>
+      <input type="date" id="dateInput">
       <!-- Slider de velocidade -->
       <input type="range" id="speedRange" min="-3" max="3" step="1" value="0">
     </div>
@@ -134,8 +136,8 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo),
-        // com velocidade máxima reduzida para 1/4
+        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo)
+        // Velocidade máxima reduzida para 1/4
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
@@ -357,21 +359,16 @@
         scene.add(nopeCloudsGroup);
         
         // =============================
-        // Mapeamento dos Alvos para Zoom
+        // Mapeamento dos Alvos para Zoom (exceto luas)
         // =============================
-        // Após a criação dos planetas, construímos uma tabela para acesso rápido.
         const targetObjects = {};
         targetObjects["Sol"] = sun;
         planets.forEach(function(planet) {
           // Para Terra e Nope, usamos o pivot (que já inclui a inclinação)
           targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
         });
-        targetObjects["Lua da Terra"] = earthMoonMesh;
-        targetObjects["Lua de Nope"] = nopeMoonMesh;
-        
         // Define o alvo atual com base na seleção do dropdown (padrão: "Nope")
         let currentTarget = targetObjects[targetSelect.value];
-        // Atualiza o alvo quando o usuário muda a seleção
         targetSelect.addEventListener('change', function(){
           currentTarget = targetObjects[this.value];
         });
@@ -395,12 +392,11 @@
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Atualiza o tempo da simulação:
-          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, 1 dia/segundo.
+          // Atualiza o tempo da simulação: se o slider estiver ativo usa sua aceleração; senão, 1 dia/segundo.
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           
-          // Atualiza o calendário (exceto se o usuário estiver editando-o)
+          // Atualiza o calendário, exceto se o usuário estiver editando-o
           if (document.activeElement !== dateInput) {
             dateInput.value = formatDate(simDate);
           }
@@ -413,7 +409,6 @@
                     M0 = THREE.Math.degToRad(planet.M0), period = planet.period;
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
-              // Resolver a equação de Kepler
               const E = (function(M, e, tolerance = 1e-6) {
                 let E = M, delta = 1;
                 while (Math.abs(delta) > tolerance) {
