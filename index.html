@@ -11,7 +11,7 @@
         color: white;
         font-family: Arial, sans-serif;
       }
-      /* Interface de Controle no canto superior esquerdo */
+      /* Container de UI para PC */
       #ui {
         position: absolute;
         top: 10px;
@@ -21,7 +21,7 @@
         padding: 10px;
         border-radius: 5px;
       }
-      /* Estilos para os elementos da UI, exibidos em bloco (empilhados) */
+      /* Elementos da UI empilhados */
       #ui select,
       #ui input[type="date"],
       #ui input[type="range"] {
@@ -39,7 +39,26 @@
         padding: 4px;
         border-radius: 3px;
       }
-      /* O slider mantém seu estilo padrão */
+      /* Media query para dispositivos móveis: UI ocupa a largura total, fixa no topo */
+      @media (max-width: 768px) {
+        #ui {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          background: rgba(0, 0, 0, 0.8);
+        }
+        #ui select,
+        #ui input[type="date"],
+        #ui input[type="range"] {
+          width: 90%;
+          margin-bottom: 8px;
+        }
+      }
     </style>
   </head>
   <body>
