@@ -12,7 +12,7 @@
         color: white;
         font-family: Arial, sans-serif;
       }
-      /* Container de UI no canto superior esquerdo */
+      /* Container principal da UI no canto superior esquerdo */
       #ui {
         position: absolute;
         top: 10px;
@@ -53,32 +53,33 @@
         padding: 4px;
         border-radius: 3px;
       }
-      /* Estilo do menu de configuração fullscreen */
+      /* Estilo do menu de configuração compacto */
       #configMenu {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.95);
-        color: white;
+        position: absolute;
+        top: 60px; /* Abaixo do botão de configuração */
+        left: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 10px;
+        border: 1px solid #555;
+        border-radius: 5px;
         z-index: 1000;
         display: none;
-        overflow-y: auto;
+        max-width: 300px;
       }
       #configMenu .config-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px;
+        padding: 5px;
         background: #222;
+        border-bottom: 1px solid #555;
       }
       #configMenu .config-header h2 {
         margin: 0;
-        font-size: 18px;
+        font-size: 16px;
       }
       #configMenu .config-close {
-        font-size: 18px;
+        font-size: 16px;
         background: none;
         border: none;
         color: white;
@@ -89,19 +90,21 @@
         border-bottom: 1px solid #555;
       }
       #configMenu .config-tab {
-        padding: 10px;
+        padding: 5px;
         cursor: pointer;
         border-right: 1px solid #555;
+        font-size: 14px;
       }
       #configMenu .config-tab.active {
         background: #333;
       }
       #configMenu .config-content {
-        padding: 20px;
+        padding: 10px;
       }
       #configMenu .config-content label {
         display: block;
         margin-top: 10px;
+        font-size: 14px;
       }
       #configMenu .config-content input[type="number"] {
         width: 100%;
@@ -135,17 +138,17 @@
       <input type="range" id="speedRange" min="-3" max="3" step="1" value="0">
     </div>
 
-    <!-- Menu de Configuração Fullscreen -->
+    <!-- Menu de Configuração Compacto -->
     <div id="configMenu">
       <div class="config-header">
         <h2>Configurações dos Planetas</h2>
         <button class="config-close" id="configClose">&times;</button>
       </div>
       <div class="config-tabs" id="configTabs">
-        <!-- As abas serão inseridas dinamicamente -->
+        <!-- Abas serão inseridas dinamicamente -->
       </div>
       <div class="config-content" id="configContent">
-        <!-- O conteúdo (formulário) da aba ativa será inserido aqui -->
+        <!-- Conteúdo da aba ativa será inserido aqui -->
       </div>
     </div>
 
@@ -218,7 +221,7 @@
         dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
         
-        // Função para formatar data como "AAAA-MM-DD"
+        // Formata a data como "AAAA-MM-DD"
         function formatDate(date) {
           const yyyy = date.getFullYear();
           const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -226,7 +229,7 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Função que mapeia o slider para o fator de aceleração (dias/segundo)
+        // Mapeia o slider para o fator de aceleração (dias/segundo)
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
@@ -240,7 +243,6 @@
           }
         }
         
-        // Permite que o usuário defina a data manualmente
         dateInput.addEventListener('change', function(){
           let newDate = new Date(this.value);
           simulationTime = (newDate - refDate) / 86400000;
@@ -461,7 +463,7 @@
         });
         
         // =============================
-        // Atualização do alvo dos controles
+        // Atualização do Alvo dos Controles
         // =============================
         function updateControlsTarget() {
           if (currentTarget) {
@@ -546,7 +548,7 @@
         animate();
         
         // =============================
-        // Configuração do Menu Fullscreen
+        // Configuração do Menu (Painel Compacto)
         // =============================
         configButton.addEventListener('click', function() {
           configMenu.style.display = 'block';
@@ -556,7 +558,7 @@
           configMenu.style.display = 'none';
         });
         
-        // Mapeamento para legendas descritivas
+        // Mapear rótulos mais descritivos para cada propriedade
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -592,14 +594,12 @@
         
         function buildConfigContent(planet) {
           configContent.innerHTML = '';
-          // Propriedades configuráveis
           const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod'];
           if (planet.axialTilt !== undefined) {
             props.push('axialTilt');
           }
           props.forEach(prop => {
             const label = document.createElement('label');
-            // Usa a legenda descritiva, se existir; caso contrário, usa a propriedade
             label.textContent = (propertyLabels[prop] || prop) + ':';
             const input = document.createElement('input');
             input.type = 'number';
