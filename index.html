@@ -311,6 +311,7 @@
         let planets = [];
         let nopeMesh, earthMesh;
         planetsData.forEach(planetData => {
+          // Armazena o tamanho base para conversões (1 Terra = 3.5)
           let size;
           switch(planetData.name) {
             case "Mercúrio": size = 2.5; break;
@@ -324,8 +325,8 @@
             case "Netuno":  size = 5; break;
             default:        size = 3;
           }
-          // Atribui o tamanho ao objeto para que possamos configurá-lo
           planetData.size = size;
+          planetData.baseSize = size;  // Tamanho original para referência
           let segments = (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16;
           let geometry = new THREE.SphereGeometry(size, segments, segments);
           let texData = textureMap[planetData.name];
@@ -346,7 +347,8 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             tiltGroup.add(mesh);
-            tiltGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt || 45);
+            // Se axialTilt não estiver definido, use 45° (para Terra e Nope) – mas aqui, já garantimos que todos terão axialTilt
+            tiltGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
             scene.add(pivot);
             planetData.pivot = pivot;
             planetData.tiltGroup = tiltGroup;
@@ -557,7 +559,7 @@
           configMenu.style.display = 'none';
         });
         
-        // Mapear rótulos descritivos para cada propriedade
+        // Rótulos descritivos para cada propriedade
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -568,10 +570,10 @@
           period: "Período Orbital (dias)",
           rotationPeriod: "Período de Rotação (horas)",
           axialTilt: "Inclinação do Eixo (°)",
-          size: "Tamanho do Planeta"
+          size: "Tamanho (em Terras)"
         };
         
-        // Para garantir que todos os planetas tenham "axialTilt", se não definido, atribuir 0.
+        // Garante que todos os planetas tenham axialTilt (se não definido, atribui 0)
         planetsData.forEach(planet => {
           if (planet.axialTilt === undefined) {
             planet.axialTilt = 0;
@@ -606,14 +608,32 @@
           const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
           props.forEach(prop => {
             const label = document.createElement('label');
+            // Usa a legenda descritiva, se existir
             label.textContent = (propertyLabels[prop] || prop) + ':';
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
-            input.value = planet[prop];
-            input.addEventListener('change', function() {
-              planet[prop] = parseFloat(this.value);
-            });
+            // Para o parâmetro "size", converter de modelo para "Terras"
+            if (prop === 'size') {
+              // Exibe em "Terras": valor atual dividido por 3.5
+              input.value = planet[prop] / 3.5;
+              input.addEventListener('change', function() {
+                let newEarthUnits = parseFloat(this.value);
+                planet[prop] = newEarthUnits * 3.5;
+                // Atualiza o scale do mesh com base na nova proporção em relação ao baseSize
+                const scaleFactor = planet[prop] / planet.baseSize;
+                if (planet.pivot && planet.tiltGroup && planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                } else if (planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+              });
+            } else {
+              input.value = planet[prop];
+              input.addEventListener('change', function() {
+                planet[prop] = parseFloat(this.value);
+              });
+            }
             configContent.appendChild(label);
             configContent.appendChild(input);
           });
