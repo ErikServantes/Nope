@@ -2,7 +2,6 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8">
-    <!-- A meta viewport é opcional, mas recomendada para responsividade -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nope v1.5 – Simulação Temporal e Sistema Planetário</title>
     <style>
@@ -219,7 +218,7 @@
         dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
         
-        // Formata a data em "AAAA-MM-DD"
+        // Função para formatar data como "AAAA-MM-DD"
         function formatDate(date) {
           const yyyy = date.getFullYear();
           const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -227,14 +226,13 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo)
-        // Velocidade máxima reduzida para 1/4
+        // Função que mapeia o slider para o fator de aceleração (dias/segundo)
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
             case -2: return -365 * 0.25;
             case -1: return -30 * 0.25;
-            case  0: return 1;      // 1 dia/segundo (normal)
+            case  0: return 1; // 1 dia/segundo (normal)
             case  1: return 30 * 0.25;
             case  2: return 365 * 0.25;
             case  3: return 3650 * 0.25;
@@ -247,6 +245,42 @@
           let newDate = new Date(this.value);
           simulationTime = (newDate - refDate) / 86400000;
         });
+        
+        // =============================
+        // Criação do Sol e Iluminação
+        // =============================
+        const textureLoader = new THREE.TextureLoader();
+        const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        const sunTexture = textureLoader.load("sun-texture.jpg");
+        const sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.castShadow = false;
+        sun.receiveShadow = false;
+        scene.add(sun);
+        
+        const sunLight = new THREE.PointLight(0xffffff, 2, 10000);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.1;
+        sunLight.shadow.camera.far = 20000;
+        sunLight.shadow.bias = -0.005;
+        sunLight.position.set(0, 0, 0);
+        sun.add(sunLight);
+        
+        const sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
+        const sunSurfaceTexture = textureLoader.load("sun-surface.png");
+        const sunSurfaceMaterial = new THREE.MeshPhongMaterial({
+          map: sunSurfaceTexture,
+          transparent: true,
+          opacity: 0.7,
+          emissive: 0xffaa00,
+          emissiveIntensity: 0.5
+        });
+        const sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
+        sunSurfaceLayer.castShadow = false;
+        sunSurfaceLayer.receiveShadow = false;
+        sun.add(sunSurfaceLayer);
         
         // =============================
         // Dados dos Planetas e Texturas
@@ -520,17 +554,14 @@
         // =============================
         // Configuração do Menu Fullscreen
         // =============================
-        // Ao clicar no botão de configurações, o menu é exibido.
         configButton.addEventListener('click', function() {
           configMenu.style.display = 'block';
           buildConfigMenu();
         });
-        // Fecha o menu ao clicar no botão de fechar.
         configClose.addEventListener('click', function() {
           configMenu.style.display = 'none';
         });
         
-        // Função para construir as abas e os formulários de configuração
         function buildConfigMenu() {
           configTabs.innerHTML = '';
           configContent.innerHTML = '';
@@ -541,14 +572,11 @@
             tab.textContent = planet.name;
             tab.dataset.index = index;
             tab.addEventListener('click', function() {
-              // Remove a classe "active" de todas as abas
-              const tabs = document.querySelectorAll('.config-tab');
-              tabs.forEach(t => t.classList.remove('active'));
+              document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
               this.classList.add('active');
               buildConfigContent(planet);
             });
             configTabs.appendChild(tab);
-            // Se for o primeiro, ativa-o
             if (index === 0) {
               tab.classList.add('active');
               buildConfigContent(planet);
@@ -556,10 +584,8 @@
           });
         }
         
-        // Função para construir o conteúdo (formulário) para um planeta específico
         function buildConfigContent(planet) {
-          configContent.innerHTML = ''; // limpa o conteúdo anterior
-          // Para cada propriedade configurável do planeta (a, e, i, Ω, ω, M0, period, rotationPeriod, axialTilt se existir)
+          configContent.innerHTML = '';
           const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod'];
           if (planet.axialTilt !== undefined) {
             props.push('axialTilt');
@@ -569,7 +595,6 @@
             label.textContent = prop + ':';
             const input = document.createElement('input');
             input.type = 'number';
-            // Define um passo adequado: para ângulos pode ser 0.1; para distâncias, etc.
             input.step = '0.1';
             input.value = planet[prop];
             input.addEventListener('change', function() {
