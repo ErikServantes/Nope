@@ -11,7 +11,7 @@
         color: white;
         font-family: Arial, sans-serif;
       }
-      /* Caixa de UI no canto superior esquerdo, sem instruções extras */
+      /* Interface de Controle no canto superior esquerdo */
       #ui {
         position: absolute;
         top: 10px;
@@ -25,7 +25,7 @@
         font-size: 14px;
         color: white;
       }
-      /* Caixa de diagnóstico (opcional) */
+      /* Diagnóstico (opcional) */
       #diagnostics {
         position: absolute;
         top: 10px;
@@ -39,10 +39,10 @@
     </style>
   </head>
   <body>
-    <!-- Interface de Controle: Apenas o slider e a data simulada -->
+    <!-- Interface de Controle: Slider e Calendário -->
     <div id="ui">
-      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0">
-      <div id="currentDate"></div>
+      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0"><br>
+      <input type="date" id="dateInput">
     </div>
     
     <!-- Diagnóstico (opcional) -->
@@ -85,7 +85,7 @@
         // Elementos da Interface
         // =============================
         const speedRange = document.getElementById('speedRange');
-        const currentDateLabel = document.getElementById('currentDate');
+        const dateInput = document.getElementById('dateInput');
         const diagnostics = document.getElementById('diagnostics');
         
         let speedSetting = 0;
@@ -110,6 +110,8 @@
         // Configuração da Simulação Temporal
         // =============================
         const refDate = new Date();
+        // Inicializa o calendário com a data de referência
+        dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
         
         // Formata a data em "AAAA-MM-DD"
@@ -134,6 +136,12 @@
           }
         }
         
+        // Permite que o usuário defina a data manualmente
+        dateInput.addEventListener('change', function(){
+          let newDate = new Date(this.value);
+          simulationTime = (newDate - refDate) / 86400000;
+        });
+        
         // =============================
         // Criação do Sol e Iluminação
         // =============================
@@ -153,7 +161,7 @@
         sunLight.shadow.camera.near = 0.1;
         sunLight.shadow.camera.far = 20000;
         sunLight.shadow.bias = -0.005;
-        sunLight.position.set(0,0,0);
+        sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
         
         const sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
@@ -255,13 +263,13 @@
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
                 Ω = THREE.Math.degToRad(planet.Ω), ω = THREE.Math.degToRad(planet.ω);
             for(let j=0; j<=numPoints; j++){
-              let f = 2*Math.PI*j/numPoints;
-              let r = a*(1-e*e)/(1+e*Math.cos(f));
-              let X = r*(Math.cos(Ω)*Math.cos(ω+f)-Math.sin(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Y = r*(Math.sin(Ω)*Math.cos(ω+f)+Math.cos(Ω)*Math.sin(ω+f)*Math.cos(i));
-              let Z = r*(Math.sin(ω+f)*Math.sin(i));
+              let f = 2 * Math.PI * j / numPoints;
+              let r = a * (1 - e * e) / (1 + e * Math.cos(f));
+              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
+              let Z = r * (Math.sin(ω+f) * Math.sin(i));
               let scale = 50;
-              pts.push(new THREE.Vector3(X*scale, Z*scale, Y*scale));
+              pts.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
             }
             return pts;
           })(planetData);
@@ -347,9 +355,9 @@
           const L = vector2.length();
           
           let t;
-          if(L > 200) {
+          if (L > 200) {
             t = 0;
-          } else if(L < 50) {
+          } else if (L < 50) {
             t = 1;
           } else {
             t = (200 - L) / 150;
@@ -370,12 +378,15 @@
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Atualiza o tempo da simulação enquanto o slider estiver ativo
-          if (sliderAtivo) {
-            simulationTime += dt * getSpeedFactor(speedSetting);
-          }
+          // Atualiza o tempo da simulação:
+          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, usa o fator de 1 dia/segundo.
+          simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
-          currentDateLabel.textContent = "Data Simulada: " + formatDate(simDate);
+          
+          // Atualiza o calendário apenas se o usuário não estiver editando-o
+          if (document.activeElement !== dateInput) {
+            dateInput.value = formatDate(simDate);
+          }
           
           // Atualiza posição e rotação dos planetas
           planets.forEach(planet => {
@@ -385,15 +396,16 @@
                     M0 = THREE.Math.degToRad(planet.M0), period = planet.period;
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
-              const E = (function(M, e, tolerance=1e-6) {
+              // Resolver a equação de Kepler
+              const E = (function(M, e, tolerance = 1e-6) {
                 let E = M, delta = 1;
-                while(Math.abs(delta) > tolerance) {
+                while (Math.abs(delta) > tolerance) {
                   delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
                   E = E - delta;
                 }
                 return E;
               })(M, e);
-              const f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E/2), Math.sqrt(1 - e) * Math.cos(E/2));
+              const f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
               const r = a * (1 - e * Math.cos(E));
               const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
@@ -401,17 +413,18 @@
               const scale = 50;
               return new THREE.Vector3(X * scale, Z * scale, Y * scale);
             })(planet, simulationTime);
-            if(planet.pivot) {
+            if (planet.pivot) {
               planet.pivot.position.copy(pos);
             } else {
               planet.mesh.position.copy(pos);
             }
           });
+          
           planets.forEach(planet => {
-            if(planet.rotationPeriod) {
+            if (planet.rotationPeriod) {
               const rotationPeriodDays = planet.rotationPeriod / 24;
               const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
-              if(planet.pivot && planet.tiltGroup) {
+              if (planet.pivot && planet.tiltGroup) {
                 planet.tiltGroup.rotation.y = angle;
               } else {
                 planet.mesh.rotation.y = angle;
@@ -435,7 +448,6 @@
           nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
           
           updateControlsTarget();
-          
           controls.update();
           renderer.render(scene, camera);
         }
