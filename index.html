@@ -455,14 +455,13 @@
         planets.forEach(function(planet) {
           targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
         });
-        // Define o alvo atual com base na seleção do dropdown (padrão: "Nope")
         let currentTarget = targetObjects[targetSelect.value];
         targetSelect.addEventListener('change', function(){
           currentTarget = targetObjects[this.value];
         });
         
         // =============================
-        // Atualização do alvo dos controles (usando o objeto selecionado)
+        // Atualização do alvo dos controles
         // =============================
         function updateControlsTarget() {
           if (currentTarget) {
@@ -480,16 +479,12 @@
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Atualiza o tempo da simulação: se o slider estiver ativo usa sua aceleração; senão, 1 dia/segundo.
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
-          
-          // Atualiza o calendário, exceto se o usuário estiver editando-o
           if (document.activeElement !== dateInput) {
             dateInput.value = formatDate(simDate);
           }
           
-          // Atualiza posição e rotação dos planetas
           planets.forEach(planet => {
             const pos = (function(planet, time) {
               const a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -532,7 +527,6 @@
             }
           });
           
-          // Atualiza posições das luas e nuvens
           earthMoonOrbitGroup.position.copy(earthMesh.position);
           nopeMoonOrbitGroup.position.copy(nopeMesh.position);
           const earthMoonAngle = (simulationTime * 2 * Math.PI / 10) % (2 * Math.PI);
@@ -562,10 +556,22 @@
           configMenu.style.display = 'none';
         });
         
+        // Mapeamento para legendas descritivas
+        const propertyLabels = {
+          a: "Distância ao Sol (UA)",
+          e: "Excentricidade",
+          i: "Inclinação Orbital (°)",
+          "Ω": "Longitude do Nodo Ascendente (°)",
+          "ω": "Argumento do Periélio (°)",
+          M0: "Anomalia Média Inicial (°)",
+          period: "Período Orbital (dias)",
+          rotationPeriod: "Período de Rotação (horas)",
+          axialTilt: "Inclinação do Eixo (°)"
+        };
+        
         function buildConfigMenu() {
           configTabs.innerHTML = '';
           configContent.innerHTML = '';
-          // Cria uma aba para cada planeta
           planetsData.forEach((planet, index) => {
             const tab = document.createElement('div');
             tab.className = 'config-tab';
@@ -586,13 +592,15 @@
         
         function buildConfigContent(planet) {
           configContent.innerHTML = '';
+          // Propriedades configuráveis
           const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod'];
           if (planet.axialTilt !== undefined) {
             props.push('axialTilt');
           }
           props.forEach(prop => {
             const label = document.createElement('label');
-            label.textContent = prop + ':';
+            // Usa a legenda descritiva, se existir; caso contrário, usa a propriedade
+            label.textContent = (propertyLabels[prop] || prop) + ':';
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
