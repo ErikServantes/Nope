@@ -25,16 +25,13 @@
         font-size: 14px;
         color: white;
       }
-      /* Diagnóstico (opcional) */
-      #diagnostics {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 100;
-        background: rgba(0,0,0,0.7);
-        padding: 8px;
-        border-radius: 5px;
-        font-size: 14px;
+      /* Estilo específico para o calendário, garantindo contraste */
+      #ui input[type="date"] {
+        background-color: #333;
+        color: white;
+        border: 1px solid #555;
+        padding: 4px;
+        border-radius: 3px;
       }
     </style>
   </head>
@@ -44,9 +41,6 @@
       <input type="range" id="speedRange" min="-3" max="3" step="1" value="0"><br>
       <input type="date" id="dateInput">
     </div>
-    
-    <!-- Diagnóstico (opcional) -->
-    <div id="diagnostics"></div>
 
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -86,7 +80,6 @@
         // =============================
         const speedRange = document.getElementById('speedRange');
         const dateInput = document.getElementById('dateInput');
-        const diagnostics = document.getElementById('diagnostics');
         
         let speedSetting = 0;
         let sliderAtivo = false;
@@ -122,16 +115,16 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo)
+        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo), com velocidade máxima reduzida para 1/4
         function getSpeedFactor(speed) {
           switch(speed) {
-            case -3: return -3650;  // -10 anos/segundo
-            case -2: return -365;   // -1 ano/segundo
-            case -1: return -30;    // -1 mês/segundo
-            case  0: return 1;      // 1 dia/segundo (normal)
-            case  1: return 30;     // 1 mês/segundo
-            case  2: return 365;    // 1 ano/segundo
-            case  3: return 3650;   // 10 anos/segundo
+            case -3: return -3650 * 0.25;  // -912.5 dias/segundo (~-2.5 anos/segundo)
+            case -2: return -365 * 0.25;   // -91.25 dias/segundo (~-0.25 ano/segundo)
+            case -1: return -30 * 0.25;    // -7.5 dias/segundo (~-1/4 mês/segundo)
+            case  0: return 1;           // 1 dia/segundo (normal)
+            case  1: return 30 * 0.25;     // 7.5 dias/segundo (~1/4 mês/segundo)
+            case  2: return 365 * 0.25;    // 91.25 dias/segundo (~1/4 ano/segundo)
+            case  3: return 3650 * 0.25;   // 912.5 dias/segundo (~2.5 anos/segundo)
             default: return 1;
           }
         }
@@ -365,7 +358,6 @@
           
           const target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
           controls.target.copy(target);
-          diagnostics.textContent = "Zoom: " + L.toFixed(2) + " | t: " + t.toFixed(2);
         }
         
         // =============================
@@ -379,7 +371,7 @@
           lastFrameTime = now;
           
           // Atualiza o tempo da simulação:
-          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, usa o fator de 1 dia/segundo.
+          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, usa 1 dia/segundo.
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           
@@ -444,8 +436,6 @@
           const nopeMoonTilt = (simulationTime / 10) * tiltIncrement;
           nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
           nopeCloudsGroup.position.copy(nopeMesh.position);
-          let nopePivotRotation = (nopeMesh.children[0] && nopeMesh.children[0].rotation) ? nopeMesh.children[0].rotation.y : 0;
-          nopeCloudsGroup.rotation.y = nopePivotRotation / 10;
           
           updateControlsTarget();
           controls.update();
