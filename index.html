@@ -21,14 +21,17 @@
         padding: 10px;
         border-radius: 5px;
       }
-      input, button, span, label {
+      /* Estilos para os elementos da UI */
+      #ui select,
+      #ui input[type="date"],
+      #ui input[type="range"] {
         font-size: 14px;
         color: white;
+        margin-bottom: 8px;
       }
       /* Estilo específico para o calendário, garantindo contraste */
       #ui input[type="date"] {
         background-color: #333;
-        color: white;
         border: 1px solid #555;
         padding: 4px;
         border-radius: 3px;
@@ -36,10 +39,27 @@
     </style>
   </head>
   <body>
-    <!-- Interface de Controle: Slider e Calendário -->
+    <!-- Interface de Controle: Dropdown, Calendário e Slider (nesta ordem) -->
     <div id="ui">
-      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0"><br>
-      <input type="date" id="dateInput">
+      <!-- Dropdown para escolher o centro do zoom -->
+      <select id="targetSelect">
+        <option value="Sol">Sol</option>
+        <option value="Mercúrio">Mercúrio</option>
+        <option value="Vênus">Vênus</option>
+        <option value="Terra">Terra</option>
+        <option value="Marte">Marte</option>
+        <option value="Nope" selected>Nope</option>
+        <option value="Júpiter">Júpiter</option>
+        <option value="Saturno">Saturno</option>
+        <option value="Urano">Urano</option>
+        <option value="Netuno">Netuno</option>
+        <option value="Lua da Terra">Lua da Terra</option>
+        <option value="Lua de Nope">Lua de Nope</option>
+      </select>
+      <!-- Calendário (input date) -->
+      <input type="date" id="dateInput"><br>
+      <!-- Slider de velocidade -->
+      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0">
     </div>
 
     <!-- Three.js e OrbitControls via CDN -->
@@ -68,7 +88,6 @@
         controls.dampingFactor = 0.05;
         controls.minDistance = 3;
         controls.maxDistance = 2000;
-        
         window.addEventListener('resize', () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
@@ -80,6 +99,7 @@
         // =============================
         const speedRange = document.getElementById('speedRange');
         const dateInput = document.getElementById('dateInput');
+        const targetSelect = document.getElementById('targetSelect');
         
         let speedSetting = 0;
         let sliderAtivo = false;
@@ -103,7 +123,6 @@
         // Configuração da Simulação Temporal
         // =============================
         const refDate = new Date();
-        // Inicializa o calendário com a data de referência
         dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
         
@@ -115,16 +134,17 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo), com velocidade máxima reduzida para 1/4
+        // Mapeia o valor do slider para o fator de aceleração (em dias/segundo),
+        // com velocidade máxima reduzida para 1/4
         function getSpeedFactor(speed) {
           switch(speed) {
-            case -3: return -3650 * 0.25;  // -912.5 dias/segundo (~-2.5 anos/segundo)
-            case -2: return -365 * 0.25;   // -91.25 dias/segundo (~-0.25 ano/segundo)
-            case -1: return -30 * 0.25;    // -7.5 dias/segundo (~-1/4 mês/segundo)
-            case  0: return 1;           // 1 dia/segundo (normal)
-            case  1: return 30 * 0.25;     // 7.5 dias/segundo (~1/4 mês/segundo)
-            case  2: return 365 * 0.25;    // 91.25 dias/segundo (~1/4 ano/segundo)
-            case  3: return 3650 * 0.25;   // 912.5 dias/segundo (~2.5 anos/segundo)
+            case -3: return -3650 * 0.25;
+            case -2: return -365 * 0.25;
+            case -1: return -30 * 0.25;
+            case  0: return 1;      // 1 dia/segundo (normal)
+            case  1: return 30 * 0.25;
+            case  2: return 365 * 0.25;
+            case  3: return 3650 * 0.25;
             default: return 1;
           }
         }
@@ -337,27 +357,32 @@
         scene.add(nopeCloudsGroup);
         
         // =============================
-        // Atualização do target dos controles (entre Sol e Nope)
+        // Mapeamento dos Alvos para Zoom
+        // =============================
+        // Após a criação dos planetas, construímos uma tabela para acesso rápido.
+        const targetObjects = {};
+        targetObjects["Sol"] = sun;
+        planets.forEach(function(planet) {
+          // Para Terra e Nope, usamos o pivot (que já inclui a inclinação)
+          targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
+        });
+        targetObjects["Lua da Terra"] = earthMoonMesh;
+        targetObjects["Lua de Nope"] = nopeMoonMesh;
+        
+        // Define o alvo atual com base na seleção do dropdown (padrão: "Nope")
+        let currentTarget = targetObjects[targetSelect.value];
+        // Atualiza o alvo quando o usuário muda a seleção
+        targetSelect.addEventListener('change', function(){
+          currentTarget = targetObjects[this.value];
+        });
+        
+        // =============================
+        // Atualização do alvo dos controles (usando o objeto selecionado)
         // =============================
         function updateControlsTarget() {
-          const D = new THREE.Vector3().subVectors(nopeMesh.position, sun.position).normalize();
-          const camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
-          const projLength = camOffset.dot(D);
-          const projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
-          const vector2 = new THREE.Vector3().subVectors(camera.position, projectionPoint);
-          const L = vector2.length();
-          
-          let t;
-          if (L > 200) {
-            t = 0;
-          } else if (L < 50) {
-            t = 1;
-          } else {
-            t = (200 - L) / 150;
+          if (currentTarget) {
+            controls.target.copy(currentTarget.position);
           }
-          
-          const target = new THREE.Vector3().lerpVectors(sun.position, nopeMesh.position, t);
-          controls.target.copy(target);
         }
         
         // =============================
@@ -371,11 +396,11 @@
           lastFrameTime = now;
           
           // Atualiza o tempo da simulação:
-          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, usa 1 dia/segundo.
+          // Se o slider estiver ativo, usa a aceleração definida; caso contrário, 1 dia/segundo.
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           
-          // Atualiza o calendário apenas se o usuário não estiver editando-o
+          // Atualiza o calendário (exceto se o usuário estiver editando-o)
           if (document.activeElement !== dateInput) {
             dateInput.value = formatDate(simDate);
           }
