@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nope v2.1 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.2 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -85,7 +85,7 @@
         color: white;
         cursor: pointer;
       }
-      /* Container de abas com rolagem horizontal */
+      /* Container de abas principal */
       #configTabs {
         display: flex;
         border-bottom: 1px solid #555;
@@ -120,6 +120,36 @@
         color: white;
         border-radius: 3px;
       }
+      /* Estilos para o container de configurações das luas */
+      .moons-container {
+        margin-top: 10px;
+        border: 1px solid #555;
+        padding: 5px;
+        border-radius: 5px;
+      }
+      .moons-tabs {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-bottom: 1px solid #555;
+        margin-bottom: 5px;
+      }
+      .moon-tab {
+        padding: 5px;
+        cursor: pointer;
+        border-right: 1px solid #555;
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .moon-tab.add-moon {
+        font-weight: bold;
+      }
+      .moon-tab.active {
+        background: #333;
+      }
+      .moons-content {
+        padding: 5px;
+      }
     </style>
   </head>
   <body>
@@ -149,10 +179,10 @@
         <button class="config-close" id="configClose">&times;</button>
       </div>
       <div class="config-tabs" id="configTabs">
-        <!-- Abas serão inseridas dinamicamente -->
+        <!-- Abas para os planetas serão criadas dinamicamente -->
       </div>
       <div class="config-content" id="configContent">
-        <!-- Conteúdo da aba ativa será inserido aqui -->
+        <!-- Configurações do planeta selecionado serão exibidas aqui -->
       </div>
     </div>
 
@@ -162,7 +192,7 @@
     
     <script>
       (function(){
-        // Fator de escala para os orbitais (valor original)
+        // Fator de escala para as órbitas (valor original)
         const orbitScale = 50;
         
         // =============================
@@ -235,7 +265,7 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Agora, com slider em 0, avançamos 0.25 dia/segundo
+        // Quando o slider estiver em 0, avançamos 0.25 dia/segundo
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
@@ -306,7 +336,13 @@
           { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 4.01 },
           { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 3.88 }
         ];
-        // Os valores de "size" estão agora na escala desejada.
+        // Se um planeta não tiver um array de luas, inicializamos com vazio.
+        planetsData.forEach(planet => {
+          if (!planet.moons) {
+            planet.moons = [];
+          }
+        });
+        
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -360,7 +396,6 @@
           planetData.baseSize = planetData.size; // Guarda o tamanho base para referência
           planets.push(planetData);
           
-          // Cria a órbita do planeta com o valor original de escala (50)
           const orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -379,84 +414,80 @@
           const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
           const orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
           scene.add(orbitLine);
+          
+          // Se o planeta tiver luas (inicialmente pode estar vazio), cria um grupo para elas
+          if (!planetData.moonGroup) {
+            planetData.moonGroup = new THREE.Group();
+            if (planetData.pivot) {
+              planetData.pivot.add(planetData.moonGroup);
+            } else if (planetData.mesh) {
+              planetData.mesh.add(planetData.moonGroup);
+            }
+          }
+          
+          // Para cada lua já definida, se não tiver mesh, crie-a
+          planetData.moons.forEach(moon => {
+            if (!moon.mesh) {
+              createMoonMesh(planetData, moon);
+            }
+          });
         });
         
         // =============================
-        // Lua da Terra
+        // Função para criar a mesh de uma lua e adicioná-la ao grupo do planeta
         // =============================
-        const earthMoonOrbitGroup = new THREE.Group();
-        scene.add(earthMoonOrbitGroup);
-        const earthMoonSize = earthMesh.children[0].children[0].geometry.parameters.radius / 4;
-        const earthMoonGeometry = new THREE.SphereGeometry(earthMoonSize, 160, 160);
-        const earthMoonTexture = textureLoader.load("earth-moon-texture.jpg");
-        const earthMoonDisplacement = textureLoader.load("earth-moon-displacement.jpg");
-        const earthMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: earthMoonTexture,
-          displacementMap: earthMoonDisplacement,
-          displacementScale: earthMoonSize * 0.025,
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        const earthMoonMesh = new THREE.Mesh(earthMoonGeometry, earthMoonMaterial);
-        earthMoonMesh.castShadow = true;
-        earthMoonMesh.receiveShadow = true;
-        earthMoonMesh.position.set(8, 0, 0);
-        earthMoonOrbitGroup.add(earthMoonMesh);
+        function createMoonMesh(planet, moon) {
+          const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 32);
+          const moonMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+          const mesh = new THREE.Mesh(moonGeometry, moonMaterial);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          moon.mesh = mesh;
+          if (!planet.moonGroup) {
+            planet.moonGroup = new THREE.Group();
+            if (planet.pivot) {
+              planet.pivot.add(planet.moonGroup);
+            } else if (planet.mesh) {
+              planet.mesh.add(planet.moonGroup);
+            }
+          }
+          planet.moonGroup.add(mesh);
+        }
         
         // =============================
-        // Lua de Nope
+        // Atualização das posições das luas (para cada planeta com luaGroup)
         // =============================
-        const nopeMoonOrbitGroup = new THREE.Group();
-        scene.add(nopeMoonOrbitGroup);
-        const nopeMoonSize = nopeMesh.children[0].children[0].geometry.parameters.radius / 16;
-        const nopeMoonGeometry = new THREE.SphereGeometry(nopeMoonSize, 160, 160);
-        const nopeMoonTexture = textureLoader.load("nope-moon-texture.jpg");
-        const nopeMoonDisplacement = textureLoader.load("nope-moon-displacement.jpg");
-        const nopeMoonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          map: nopeMoonTexture,
-          displacementMap: nopeMoonDisplacement,
-          displacementScale: nopeMoonSize * 0.025,
-          emissive: 0x444444,
-          emissiveIntensity: 1
-        });
-        const nopeMoonMesh = new THREE.Mesh(nopeMoonGeometry, nopeMoonMaterial);
-        nopeMoonMesh.castShadow = true;
-        nopeMoonMesh.receiveShadow = true;
-        nopeMoonMesh.position.set(4.5, 0, 0);
-        nopeMoonOrbitGroup.add(nopeMoonMesh);
-        
-        // =============================
-        // Nuvens para "Nope"
-        // =============================
-        const nopeCloudsGeometry = new THREE.SphereGeometry(3 * 1.02, 320, 320);
-        const nopeCloudsTexture = textureLoader.load("nope-clouds.png");
-        const nopeCloudsMaterial = new THREE.MeshStandardMaterial({
-          map: nopeCloudsTexture,
-          transparent: true,
-          opacity: 0.8,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        });
-        const nopeCloudsMesh = new THREE.Mesh(nopeCloudsGeometry, nopeCloudsMaterial);
-        nopeCloudsMesh.receiveShadow = true;
-        const nopeCloudsGroup = new THREE.Group();
-        nopeCloudsGroup.add(nopeCloudsMesh);
-        scene.add(nopeCloudsGroup);
-        
-        // =============================
-        // Mapeamento dos Alvos para Zoom (exceto luas)
-        // =============================
-        const targetObjects = {};
-        targetObjects["Sol"] = sun;
-        planets.forEach(function(planet) {
-          targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
-        });
-        let currentTarget = targetObjects[targetSelect.value];
-        targetSelect.addEventListener('change', function(){
-          currentTarget = targetObjects[this.value];
-        });
+        function updateMoons() {
+          planets.forEach(planet => {
+            if (planet.moonGroup && planet.moons.length > 0) {
+              planet.moons.forEach(moon => {
+                // Convertendo M0 para radianos
+                let M0 = moon.M0 * Math.PI / 180;
+                let n = 2 * Math.PI / moon.period;
+                let M = (M0 + n * simulationTime) % (2 * Math.PI);
+                let E = M;
+                let delta = 1;
+                while (Math.abs(delta) > 1e-6) {
+                  delta = (E - moon.e * Math.sin(E) - M) / (1 - moon.e * Math.cos(E));
+                  E = E - delta;
+                }
+                let f = 2 * Math.atan2(Math.sqrt(1 + moon.e) * Math.sin(E / 2), Math.sqrt(1 - moon.e) * Math.cos(E / 2));
+                let r = moon.a * (1 - moon.e * Math.cos(E));
+                let i_rad = moon.i * Math.PI / 180;
+                let Ω_rad = moon.Ω * Math.PI / 180;
+                let ω_rad = moon.ω * Math.PI / 180;
+                let pos = new THREE.Vector3(
+                  r * (Math.cos(Ω_rad) * Math.cos(ω_rad + f) - Math.sin(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
+                  r * (Math.sin(Ω_rad) * Math.cos(ω_rad + f) + Math.cos(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
+                  r * (Math.sin(ω_rad + f) * Math.sin(i_rad))
+                );
+                if (moon.mesh) {
+                  moon.mesh.position.copy(pos);
+                }
+              });
+            }
+          });
+        }
         
         // =============================
         // Função de Zoom Interpolado
@@ -545,17 +576,8 @@
             }
           });
           
-          earthMoonOrbitGroup.position.copy(earthMesh.position);
-          nopeMoonOrbitGroup.position.copy(nopeMesh.position);
-          const earthMoonAngle = (simulationTime * 2 * Math.PI / 10) % (2 * Math.PI);
-          earthMoonOrbitGroup.rotation.y = earthMoonAngle;
-          const nopeMoonPeriod = 0.25;
-          const nopeMoonAngle = (simulationTime * 2 * Math.PI / nopeMoonPeriod) % (2 * Math.PI);
-          nopeMoonOrbitGroup.rotation.y = nopeMoonAngle;
-          const tiltIncrement = THREE.Math.degToRad(15);
-          const nopeMoonTilt = (simulationTime / 10) * tiltIncrement;
-          nopeMoonOrbitGroup.rotation.x = nopeMoonTilt;
-          nopeCloudsGroup.position.copy(nopeMesh.position);
+          // Atualiza a posição das luas para cada planeta
+          updateMoons();
           
           updateControlsTarget();
           controls.update();
@@ -574,7 +596,7 @@
           configMenu.style.display = 'none';
         });
         
-        // Rótulos descritivos para cada propriedade
+        // Rótulos descritivos para cada propriedade de planeta
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -595,6 +617,7 @@
           }
         });
         
+        // Função para construir o menu de configuração de um planeta, incluindo a área de configuração das luas
         function buildConfigMenu() {
           configTabs.innerHTML = '';
           configContent.innerHTML = '';
@@ -617,9 +640,10 @@
           });
         }
         
+        // Função para construir o conteúdo de configuração de um planeta, incluindo um sistema de abas para as luas
         function buildConfigContent(planet) {
           configContent.innerHTML = '';
-          // Lista de propriedades a exibir – inclui axialTilt e size para todos
+          // Primeiramente, os parâmetros do planeta
           const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
           props.forEach(prop => {
             const label = document.createElement('label');
@@ -627,12 +651,11 @@
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
-            // Para o parâmetro "size", agora 1 Terra equivale a 1, sem conversão
             if (prop === 'size') {
               input.value = planet[prop];
               input.addEventListener('change', function() {
-                let newValue = parseFloat(this.value);
-                planet[prop] = newValue;
+                let newVal = parseFloat(this.value);
+                planet[prop] = newVal;
                 const scaleFactor = planet[prop] / planet.baseSize;
                 if (planet.pivot && planet.tiltGroup && planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
@@ -649,6 +672,692 @@
             configContent.appendChild(label);
             configContent.appendChild(input);
           });
+          
+          // Agora, adicionamos a área de configuração das luas
+          const moonsContainer = document.createElement('div');
+          moonsContainer.className = 'moons-container';
+          
+          const moonsTabs = document.createElement('div');
+          moonsTabs.className = 'moons-tabs';
+          
+          const moonsContent = document.createElement('div');
+          moonsContent.className = 'moons-content';
+          
+          // Função para construir as abas das luas
+          function buildMoonsTabs() {
+            moonsTabs.innerHTML = '';
+            planet.moons.forEach((moon, index) => {
+              const tab = document.createElement('div');
+              tab.className = 'moon-tab';
+              tab.textContent = moon.name || ("Lua " + (index + 1));
+              tab.dataset.index = index;
+              tab.addEventListener('click', function() {
+                document.querySelectorAll('.moon-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                buildMoonsContent(moon);
+              });
+              tab.addEventListener('dblclick', function() {
+                const newName = prompt("Novo nome para a lua:", tab.textContent);
+                if (newName) {
+                  tab.textContent = newName;
+                  moon.name = newName;
+                }
+              });
+              moonsTabs.appendChild(tab);
+            });
+            // Aba para adicionar nova lua
+            const addTab = document.createElement('div');
+            addTab.className = 'moon-tab add-moon';
+            addTab.textContent = "+";
+            addTab.addEventListener('click', function() {
+              const newMoon = {
+                name: "Nova Lua",
+                a: 0.1,
+                e: 0,
+                i: 0,
+                Ω: 0,
+                ω: 0,
+                M0: 0,
+                period: 1,
+                rotationPeriod: 1,
+                axialTilt: 0,
+                size: 0.1
+              };
+              planet.moons.push(newMoon);
+              createMoonMesh(planet, newMoon);
+              buildMoonsTabs();
+            });
+            moonsTabs.appendChild(addTab);
+          }
+          
+          // Função para construir o conteúdo de configuração de uma lua
+          function buildMoonsContent(moon) {
+            moonsContent.innerHTML = '';
+            const moonProps = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
+            moonProps.forEach(prop => {
+              const label = document.createElement('label');
+              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ':';
+              const input = document.createElement('input');
+              input.type = 'number';
+              input.step = '0.1';
+              input.value = moon[prop];
+              input.addEventListener('change', function() {
+                moon[prop] = parseFloat(this.value);
+              });
+              moonsContent.appendChild(label);
+              moonsContent.appendChild(input);
+            });
+          }
+          
+          // Constrói as abas de luas e o conteúdo inicial
+          buildMoonsTabs();
+          
+          // Adiciona título e o container de luas à área de configuração
+          const moonsTitle = document.createElement('h3');
+          moonsTitle.textContent = "Luass";
+          configContent.appendChild(document.createElement('hr'));
+          configContent.appendChild(moonsTitle);
+          moonsContainer.appendChild(moonsTabs);
+          moonsContainer.appendChild(moonsContent);
+          configContent.appendChild(moonsContainer);
+        }
+        
+        // =============================
+        // Função para criar a mesh de uma lua
+        // =============================
+        function createMoonMesh(planet, moon) {
+          const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 32);
+          const moonMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+          const mesh = new THREE.Mesh(moonGeometry, moonMaterial);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          moon.mesh = mesh;
+          if (!planet.moonGroup) {
+            planet.moonGroup = new THREE.Group();
+            if (planet.pivot) {
+              planet.pivot.add(planet.moonGroup);
+            } else if (planet.mesh) {
+              planet.mesh.add(planet.moonGroup);
+            }
+          }
+          planet.moonGroup.add(mesh);
+        }
+        
+        // =============================
+        // Função para atualizar a posição das luas de cada planeta
+        // =============================
+        function updateMoons() {
+          planets.forEach(planet => {
+            if (planet.moonGroup && planet.moons && planet.moons.length > 0) {
+              planet.moons.forEach(moon => {
+                let M0 = moon.M0 * Math.PI / 180;
+                let n = 2 * Math.PI / moon.period;
+                let M = (M0 + n * simulationTime) % (2 * Math.PI);
+                let E = M;
+                let delta = 1;
+                while (Math.abs(delta) > 1e-6) {
+                  delta = (E - moon.e * Math.sin(E) - M) / (1 - moon.e * Math.cos(E));
+                  E = E - delta;
+                }
+                let f = 2 * Math.atan2(Math.sqrt(1 + moon.e) * Math.sin(E / 2), Math.sqrt(1 - moon.e) * Math.cos(E / 2));
+                let r = moon.a * (1 - moon.e * Math.cos(E));
+                let i_rad = moon.i * Math.PI / 180;
+                let Ω_rad = moon.Ω * Math.PI / 180;
+                let ω_rad = moon.ω * Math.PI / 180;
+                let pos = new THREE.Vector3(
+                  r * (Math.cos(Ω_rad) * Math.cos(ω_rad + f) - Math.sin(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
+                  r * (Math.sin(Ω_rad) * Math.cos(ω_rad + f) + Math.cos(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
+                  r * (Math.sin(ω_rad + f) * Math.sin(i_rad))
+                );
+                if (moon.mesh) {
+                  moon.mesh.position.copy(pos);
+                }
+              });
+            }
+          });
+        }
+        
+        // =============================
+        // Função de Zoom Interpolado
+        // =============================
+        function updateControlsTarget() {
+          if (currentTarget === sun) {
+            controls.target.copy(sun.position);
+            return;
+          }
+          let D = new THREE.Vector3().subVectors(currentTarget.position, sun.position);
+          if (D.length() === 0) {
+            controls.target.copy(sun.position);
+            return;
+          }
+          D.normalize();
+          let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
+          let projLength = camOffset.dot(D);
+          let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
+          let L = new THREE.Vector3().subVectors(camera.position, projectionPoint).length();
+          let t;
+          if(L > 200) {
+            t = 0;
+          } else if(L < 50) {
+            t = 1;
+          } else {
+            t = (200 - L) / 150;
+          }
+          let newTarget = new THREE.Vector3().lerpVectors(sun.position, currentTarget.position, t);
+          controls.target.copy(newTarget);
+        }
+        
+        // =============================
+        // Loop de Animação
+        // =============================
+        let lastFrameTime = performance.now();
+        function animate() {
+          requestAnimationFrame(animate);
+          const now = performance.now();
+          const dt = (now - lastFrameTime) / 1000;
+          lastFrameTime = now;
+          
+          simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
+          const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
+          if (document.activeElement !== dateInput) {
+            dateInput.value = formatDate(simDate);
+          }
+          
+          planets.forEach(planet => {
+            const pos = (function(planet, time) {
+              const a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
+                    Ω = THREE.Math.degToRad(planet.Ω), ω = THREE.Math.degToRad(planet.ω),
+                    M0 = THREE.Math.degToRad(planet.M0), period = planet.period;
+              const n = 2 * Math.PI / period;
+              let M = (M0 + n * time) % (2 * Math.PI);
+              const E = (function(M, e, tolerance = 1e-6) {
+                let E = M, delta = 1;
+                while (Math.abs(delta) > tolerance) {
+                  delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+                  E = E - delta;
+                }
+                return E;
+              })(M, e);
+              const f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+              const r = a * (1 - e * Math.cos(E));
+              const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+              const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+              const Z = r * (Math.sin(ω + f) * Math.sin(i));
+              return new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale);
+            })(planet, simulationTime);
+            if (planet.pivot) {
+              planet.pivot.position.copy(pos);
+            } else {
+              planet.mesh.position.copy(pos);
+            }
+          });
+          
+          planets.forEach(planet => {
+            if (planet.rotationPeriod) {
+              const rotationPeriodDays = planet.rotationPeriod / 24;
+              const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
+              if (planet.pivot && planet.tiltGroup) {
+                planet.tiltGroup.rotation.y = angle;
+              } else {
+                planet.mesh.rotation.y = angle;
+              }
+            }
+          });
+          
+          updateMoons();
+          
+          updateControlsTarget();
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+        
+        // =============================
+        // Configuração do Menu Compacto
+        // =============================
+        configButton.addEventListener('click', function() {
+          configMenu.style.display = 'block';
+          buildConfigMenu();
+        });
+        configClose.addEventListener('click', function() {
+          configMenu.style.display = 'none';
+        });
+        
+        // Rótulos descritivos para as propriedades do planeta
+        const propertyLabels = {
+          a: "Distância ao Sol (UA)",
+          e: "Excentricidade",
+          i: "Inclinação Orbital (°)",
+          "Ω": "Longitude do Nodo Ascendente (°)",
+          "ω": "Argumento do Periélio (°)",
+          M0: "Anomalia Média Inicial (°)",
+          period: "Período Orbital (dias)",
+          rotationPeriod: "Período de Rotação (horas)",
+          axialTilt: "Inclinação do Eixo (°)",
+          size: "Tamanho (em Terras)"
+        };
+        
+        // Garante que todos os planetas tenham axialTilt
+        planetsData.forEach(planet => {
+          if (planet.axialTilt === undefined) {
+            planet.axialTilt = 0;
+          }
+        });
+        
+        // Função para construir o menu de configuração do planeta (incluindo abas para luas)
+        function buildConfigMenu() {
+          configTabs.innerHTML = '';
+          configContent.innerHTML = '';
+          planetsData.forEach((planet, index) => {
+            const tab = document.createElement('div');
+            tab.className = 'config-tab';
+            tab.textContent = planet.name;
+            tab.dataset.index = index;
+            tab.addEventListener('click', function() {
+              document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+              this.classList.add('active');
+              buildConfigContent(planet);
+            });
+            configTabs.appendChild(tab);
+            if (index === 0) {
+              tab.classList.add('active');
+              buildConfigContent(planet);
+            }
+          });
+        }
+        
+        // Função para construir o conteúdo de configuração do planeta, incluindo a área de configuração das luas
+        function buildConfigContent(planet) {
+          configContent.innerHTML = '';
+          const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
+          props.forEach(prop => {
+            const label = document.createElement('label');
+            label.textContent = (propertyLabels[prop] || prop) + ':';
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            if (prop === 'size') {
+              input.value = planet[prop];
+              input.addEventListener('change', function() {
+                let newVal = parseFloat(this.value);
+                planet[prop] = newVal;
+                const scaleFactor = planet[prop] / planet.baseSize;
+                if (planet.pivot && planet.tiltGroup && planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                } else if (planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+              });
+            } else {
+              input.value = planet[prop];
+              input.addEventListener('change', function() {
+                planet[prop] = parseFloat(this.value);
+              });
+            }
+            configContent.appendChild(label);
+            configContent.appendChild(input);
+          });
+          
+          // Área de configuração das luas
+          const moonsContainer = document.createElement('div');
+          moonsContainer.className = 'moons-container';
+          
+          const moonsTabs = document.createElement('div');
+          moonsTabs.className = 'moons-tabs';
+          
+          const moonsContent = document.createElement('div');
+          moonsContent.className = 'moons-content';
+          
+          // Função para construir as abas das luas
+          function buildMoonsTabs() {
+            moonsTabs.innerHTML = '';
+            planet.moons.forEach((moon, index) => {
+              const tab = document.createElement('div');
+              tab.className = 'moon-tab';
+              tab.textContent = moon.name || ("Lua " + (index + 1));
+              tab.dataset.index = index;
+              tab.addEventListener('click', function() {
+                document.querySelectorAll('.moon-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                buildMoonsContent(moon);
+              });
+              tab.addEventListener('dblclick', function() {
+                const newName = prompt("Novo nome para a lua:", tab.textContent);
+                if(newName) {
+                  tab.textContent = newName;
+                  moon.name = newName;
+                }
+              });
+              moonsTabs.appendChild(tab);
+            });
+            const addTab = document.createElement('div');
+            addTab.className = 'moon-tab add-moon';
+            addTab.textContent = "+";
+            addTab.addEventListener('click', function() {
+              const newMoon = {
+                name: "Nova Lua",
+                a: 0.1,
+                e: 0,
+                i: 0,
+                Ω: 0,
+                ω: 0,
+                M0: 0,
+                period: 1,
+                rotationPeriod: 1,
+                axialTilt: 0,
+                size: 0.1
+              };
+              planet.moons.push(newMoon);
+              createMoonMesh(planet, newMoon);
+              buildMoonsTabs();
+            });
+            moonsTabs.appendChild(addTab);
+          }
+          
+          // Função para construir o conteúdo de configuração de uma lua
+          function buildMoonsContent(moon) {
+            moonsContent.innerHTML = '';
+            const moonProps = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
+            moonProps.forEach(prop => {
+              const label = document.createElement('label');
+              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ':';
+              const input = document.createElement('input');
+              input.type = 'number';
+              input.step = '0.1';
+              input.value = moon[prop];
+              input.addEventListener('change', function() {
+                moon[prop] = parseFloat(this.value);
+              });
+              moonsContent.appendChild(label);
+              moonsContent.appendChild(input);
+            });
+          }
+          
+          buildMoonsTabs();
+          
+          const moonsTitle = document.createElement('h3');
+          moonsTitle.textContent = "Luass";
+          configContent.appendChild(document.createElement('hr'));
+          configContent.appendChild(moonsTitle);
+          moonsContainer.appendChild(moonsTabs);
+          moonsContainer.appendChild(moonsContent);
+          configContent.appendChild(moonsContainer);
+        }
+        
+        // =============================
+        // Função de Zoom Interpolado
+        // =============================
+        let currentTarget = targetObjects[targetSelect.value];
+        targetSelect.addEventListener('change', function(){
+          currentTarget = targetObjects[this.value];
+        });
+        function updateControlsTarget() {
+          if (currentTarget === sun) {
+            controls.target.copy(sun.position);
+            return;
+          }
+          let D = new THREE.Vector3().subVectors(currentTarget.position, sun.position);
+          if (D.length() === 0) {
+            controls.target.copy(sun.position);
+            return;
+          }
+          D.normalize();
+          let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
+          let projLength = camOffset.dot(D);
+          let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
+          let L = new THREE.Vector3().subVectors(camera.position, projectionPoint).length();
+          let t;
+          if(L > 200) {
+            t = 0;
+          } else if(L < 50) {
+            t = 1;
+          } else {
+            t = (200 - L) / 150;
+          }
+          let newTarget = new THREE.Vector3().lerpVectors(sun.position, currentTarget.position, t);
+          controls.target.copy(newTarget);
+        }
+        
+        // =============================
+        // Loop de Animação
+        // =============================
+        let lastFrameTime = performance.now();
+        function animate() {
+          requestAnimationFrame(animate);
+          const now = performance.now();
+          const dt = (now - lastFrameTime) / 1000;
+          lastFrameTime = now;
+          
+          simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
+          const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
+          if (document.activeElement !== dateInput) {
+            dateInput.value = formatDate(simDate);
+          }
+          
+          planets.forEach(planet => {
+            const pos = (function(planet, time) {
+              const a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
+                    Ω = THREE.Math.degToRad(planet.Ω), ω = THREE.Math.degToRad(planet.ω),
+                    M0 = THREE.Math.degToRad(planet.M0), period = planet.period;
+              const n = 2 * Math.PI / period;
+              let M = (M0 + n * time) % (2 * Math.PI);
+              const E = (function(M, e, tolerance = 1e-6) {
+                let E = M, delta = 1;
+                while (Math.abs(delta) > tolerance) {
+                  delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+                  E = E - delta;
+                }
+                return E;
+              })(M, e);
+              const f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+              const r = a * (1 - e * Math.cos(E));
+              const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+              const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+              const Z = r * (Math.sin(ω + f) * Math.sin(i));
+              return new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale);
+            })(planet, simulationTime);
+            if (planet.pivot) {
+              planet.pivot.position.copy(pos);
+            } else {
+              planet.mesh.position.copy(pos);
+            }
+          });
+          
+          planets.forEach(planet => {
+            if (planet.rotationPeriod) {
+              const rotationPeriodDays = planet.rotationPeriod / 24;
+              const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
+              if (planet.pivot && planet.tiltGroup) {
+                planet.tiltGroup.rotation.y = angle;
+              } else {
+                planet.mesh.rotation.y = angle;
+              }
+            }
+          });
+          
+          updateMoons();
+          
+          updateControlsTarget();
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+        
+        // =============================
+        // Configuração do Menu Compacto
+        // =============================
+        configButton.addEventListener('click', function() {
+          configMenu.style.display = 'block';
+          buildConfigMenu();
+        });
+        configClose.addEventListener('click', function() {
+          configMenu.style.display = 'none';
+        });
+        
+        // Mapeamento dos alvos para zoom
+        const targetObjects = {};
+        targetObjects["Sol"] = sun;
+        planets.forEach(function(planet) {
+          targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
+        });
+        targetSelect.addEventListener('change', function(){
+          currentTarget = targetObjects[this.value];
+        });
+        let currentTarget = targetObjects[targetSelect.value];
+        
+        // Rótulos descritivos para as propriedades do planeta
+        const propertyLabels = {
+          a: "Distância ao Sol (UA)",
+          e: "Excentricidade",
+          i: "Inclinação Orbital (°)",
+          "Ω": "Longitude do Nodo Ascendente (°)",
+          "ω": "Argumento do Periélio (°)",
+          M0: "Anomalia Média Inicial (°)",
+          period: "Período Orbital (dias)",
+          rotationPeriod: "Período de Rotação (horas)",
+          axialTilt: "Inclinação do Eixo (°)",
+          size: "Tamanho (em Terras)"
+        };
+        
+        planetsData.forEach(planet => {
+          if (planet.axialTilt === undefined) {
+            planet.axialTilt = 0;
+          }
+        });
+        
+        function buildConfigMenu() {
+          configTabs.innerHTML = '';
+          configContent.innerHTML = '';
+          planetsData.forEach((planet, index) => {
+            const tab = document.createElement('div');
+            tab.className = 'config-tab';
+            tab.textContent = planet.name;
+            tab.dataset.index = index;
+            tab.addEventListener('click', function() {
+              document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+              this.classList.add('active');
+              buildConfigContent(planet);
+            });
+            configTabs.appendChild(tab);
+            if (index === 0) {
+              tab.classList.add('active');
+              buildConfigContent(planet);
+            }
+          });
+        }
+        
+        function buildConfigContent(planet) {
+          configContent.innerHTML = '';
+          const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
+          props.forEach(prop => {
+            const label = document.createElement('label');
+            label.textContent = (propertyLabels[prop] || prop) + ':';
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            if (prop === 'size') {
+              input.value = planet[prop];
+              input.addEventListener('change', function() {
+                let newVal = parseFloat(this.value);
+                planet[prop] = newVal;
+                const scaleFactor = planet[prop] / planet.baseSize;
+                if (planet.pivot && planet.tiltGroup && planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                } else if (planet.mesh) {
+                  planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+              });
+            } else {
+              input.value = planet[prop];
+              input.addEventListener('change', function() {
+                planet[prop] = parseFloat(this.value);
+              });
+            }
+            configContent.appendChild(label);
+            configContent.appendChild(input);
+          });
+          
+          // Área de configuração das luas
+          const moonsContainer = document.createElement('div');
+          moonsContainer.className = 'moons-container';
+          
+          const moonsTabs = document.createElement('div');
+          moonsTabs.className = 'moons-tabs';
+          
+          const moonsContent = document.createElement('div');
+          moonsContent.className = 'moons-content';
+          
+          function buildMoonsTabs() {
+            moonsTabs.innerHTML = '';
+            planet.moons.forEach((moon, index) => {
+              const tab = document.createElement('div');
+              tab.className = 'moon-tab';
+              tab.textContent = moon.name || ("Lua " + (index + 1));
+              tab.dataset.index = index;
+              tab.addEventListener('click', function() {
+                document.querySelectorAll('.moon-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                buildMoonsContent(moon);
+              });
+              tab.addEventListener('dblclick', function() {
+                const newName = prompt("Novo nome para a lua:", tab.textContent);
+                if(newName) {
+                  tab.textContent = newName;
+                  moon.name = newName;
+                }
+              });
+              moonsTabs.appendChild(tab);
+            });
+            const addTab = document.createElement('div');
+            addTab.className = 'moon-tab add-moon';
+            addTab.textContent = "+";
+            addTab.addEventListener('click', function() {
+              const newMoon = {
+                name: "Nova Lua",
+                a: 0.1,
+                e: 0,
+                i: 0,
+                Ω: 0,
+                ω: 0,
+                M0: 0,
+                period: 1,
+                rotationPeriod: 1,
+                axialTilt: 0,
+                size: 0.1
+              };
+              planet.moons.push(newMoon);
+              createMoonMesh(planet, newMoon);
+              buildMoonsTabs();
+            });
+            moonsTabs.appendChild(addTab);
+          }
+          
+          function buildMoonsContent(moon) {
+            moonsContent.innerHTML = '';
+            const moonProps = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
+            moonProps.forEach(prop => {
+              const label = document.createElement('label');
+              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ':';
+              const input = document.createElement('input');
+              input.type = 'number';
+              input.step = '0.1';
+              input.value = moon[prop];
+              input.addEventListener('change', function() {
+                moon[prop] = parseFloat(this.value);
+              });
+              moonsContent.appendChild(label);
+              moonsContent.appendChild(input);
+            });
+          }
+          
+          buildMoonsTabs();
+          const moonsTitle = document.createElement('h3');
+          moonsTitle.textContent = "Luass";
+          configContent.appendChild(document.createElement('hr'));
+          configContent.appendChild(moonsTitle);
+          moonsContainer.appendChild(moonsTabs);
+          moonsContainer.appendChild(moonsContent);
+          configContent.appendChild(moonsContainer);
         }
         
       })();
