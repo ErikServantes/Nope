@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.4 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.5 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -58,8 +58,7 @@
         position: absolute;
         top: 60px; /* Abaixo do botão de configuração */
         left: 10px;
-        /* Fundo 90% transparente: 10% opaco */
-        background: rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.1); /* 90% transparente */
         padding: 10px;
         border: 1px solid #555;
         border-radius: 5px;
@@ -376,7 +375,7 @@
           {
             name: "Nope",
             a: 1.59,
-            e: 0.5,         // Atualizado para excentricidade 0.5
+            e: 0.5,       // excentricidade ajustada para 0.5
             i: 90.0,
             Ω: 0.0,
             ω: 0.0,
@@ -384,8 +383,8 @@
             period: 730,
             rotationPeriod: 26,
             axialTilt: 45,
-            size: 0.25,     // Atualizado para tamanho 0.25
-            // Lua de Nope: distância à superfície = 0.25, período 0.333, tamanho 0.05
+            size: 0.25,   // tamanho ajustado para 0.25
+            // Lua de Nope: distância à superfície = 0.25, período orbital = 0.333, tamanho = 0.05
             moons: [
               {
                 name: "Lua de Nope",
@@ -485,6 +484,7 @@
           planetData.baseSize = planetData.size; // Guarda o tamanho base para referência
           planets.push(planetData);
 
+          // Cria a órbita do planeta e armazena a linha na propriedade orbitLine
           const orbitPoints = (function (planet, numPoints = 200) {
             let pts = [];
             let a = planet.a,
@@ -510,6 +510,8 @@
           });
           const orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
           scene.add(orbitLine);
+          // Armazena a linha de órbita no objeto do planeta para recálculo futuro
+          planetData.orbitLine = orbitLine;
 
           // Cria grupo para luas se não existir
           if (!planetData.moonGroup) {
@@ -528,9 +530,30 @@
           });
         });
 
-        // =============================
+        // Função para recalcular a órbita do planeta quando os parâmetros são alterados
+        function recalcOrbit(planet) {
+          let numPoints = 200;
+          let pts = [];
+          let a = planet.a,
+              e = planet.e,
+              i = THREE.Math.degToRad(planet.i),
+              Ω = THREE.Math.degToRad(planet.Ω),
+              ω = THREE.Math.degToRad(planet.ω);
+          for (let j = 0; j <= numPoints; j++) {
+            let f = (2 * Math.PI * j) / numPoints;
+            let r = (a * (1 - e * e)) / (1 + e * Math.cos(f));
+            let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+            let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+            let Z = r * (Math.sin(ω + f) * Math.sin(i));
+            pts.push(new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale));
+          }
+          if (planet.orbitLine) {
+            planet.orbitLine.geometry.dispose();
+            planet.orbitLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+          }
+        }
+
         // Função para criar a mesh de uma lua e adicioná-la ao grupo do planeta
-        // =============================
         function createMoonMesh(planet, moon) {
           const moonGeometry = new THREE.SphereGeometry(moon.size, 32, 32);
           const moonMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
@@ -551,9 +574,7 @@
           planet.moonGroup.add(mesh);
         }
 
-        // =============================
         // Função para atualizar a posição das luas de cada planeta
-        // =============================
         function updateMoons() {
           planets.forEach((planet) => {
             if (planet.moonGroup && planet.moons && planet.moons.length > 0) {
@@ -571,8 +592,7 @@
                   Math.sqrt(1 + moon.e) * Math.sin(E / 2),
                   Math.sqrt(1 - moon.e) * Math.cos(E / 2)
                 );
-                // A distância agora é calculada a partir da superfície do planeta:
-                // A posição da lua = planeta.size + (moon.a * (1 - e*cosE))
+                // A distância é calculada a partir da superfície do planeta:
                 let r = planet.size + moon.a * (1 - moon.e * Math.cos(E));
                 let i_rad = (moon.i * Math.PI) / 180;
                 let Ω_rad = (moon.Ω * Math.PI) / 180;
@@ -590,9 +610,7 @@
           });
         }
 
-        // =============================
         // Função de Zoom Interpolado
-        // =============================
         const targetObjects = {};
         targetObjects["Sol"] = sun;
         planets.forEach((planet) => {
@@ -629,9 +647,7 @@
           controls.target.copy(newTarget);
         }
 
-        // =============================
         // Loop de Animação
-        // =============================
         let lastFrameTime = performance.now();
         function animate() {
           requestAnimationFrame(animate);
@@ -657,8 +673,7 @@
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               const E = (function (M, e, tolerance = 1e-6) {
-                let E = M,
-                  delta = 1;
+                let E = M, delta = 1;
                 while (Math.abs(delta) > tolerance) {
                   delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
                   E = E - delta;
@@ -712,7 +727,7 @@
           configMenu.style.display = "none";
         });
 
-        // Rótulos descritivos para as propriedades do planeta
+        // Rótulos para as propriedades do planeta
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -793,6 +808,10 @@
               input.value = planet[prop];
               input.addEventListener("change", function () {
                 planet[prop] = parseFloat(this.value);
+                // Se alterar um parâmetro que afeta a órbita, recalcula-a
+                if (["a", "e", "i", "Ω", "ω"].includes(prop)) {
+                  recalcOrbit(planet);
+                }
               });
             }
             configContent.appendChild(label);
@@ -832,7 +851,7 @@
               });
               moonsTabs.appendChild(tab);
             });
-            // Aba para adicionar nova lua – "a" padrão é 1.2
+            // Aba para adicionar nova lua – valor padrão de "a" é 1.2
             const addTab = document.createElement("div");
             addTab.className = "moon-tab add-moon";
             addTab.textContent = "+";
