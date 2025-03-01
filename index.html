@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nope v2.2 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
@@ -56,7 +56,7 @@
       /* Estilo do menu de configuração compacto */
       #configMenu {
         position: absolute;
-        top: 60px; /* Abaixo do botão de configuração */
+        top: 60px;
         left: 10px;
         background: rgba(0, 0, 0, 0.9);
         padding: 10px;
@@ -168,8 +168,8 @@
         <option value="Urano">Urano</option>
         <option value="Netuno">Netuno</option>
       </select>
-      <input type="date" id="dateInput">
-      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0">
+      <input type="date" id="dateInput" />
+      <input type="range" id="speedRange" min="-3" max="3" step="1" value="0" />
     </div>
 
     <!-- Menu de Configuração Compacto -->
@@ -189,101 +189,114 @@
     <!-- Three.js e OrbitControls via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    
+
     <script>
-      (function(){
+      (function () {
         // Fator de escala para as órbitas (valor original)
         const orbitScale = 50;
-        
+
         // =============================
         // Cena, Câmera, Renderer e Controles
         // =============================
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-        
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+
+        const camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          20000
+        );
         camera.position.set(0, 200, 500);
-        
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
-        
+
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 3;
         controls.maxDistance = 2000;
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        
+
         // =============================
         // Elementos da Interface
         // =============================
-        const speedRange = document.getElementById('speedRange');
-        const dateInput = document.getElementById('dateInput');
-        const targetSelect = document.getElementById('targetSelect');
-        const configButton = document.getElementById('configButton');
-        const configMenu = document.getElementById('configMenu');
-        const configClose = document.getElementById('configClose');
-        const configTabs = document.getElementById('configTabs');
-        const configContent = document.getElementById('configContent');
-        
+        const speedRange = document.getElementById("speedRange");
+        const dateInput = document.getElementById("dateInput");
+        const targetSelect = document.getElementById("targetSelect");
+        const configButton = document.getElementById("configButton");
+        const configMenu = document.getElementById("configMenu");
+        const configClose = document.getElementById("configClose");
+        const configTabs = document.getElementById("configTabs");
+        const configContent = document.getElementById("configContent");
+
         let speedSetting = 0;
         let sliderAtivo = false;
-        
-        speedRange.addEventListener('input', function() {
+
+        speedRange.addEventListener("input", function () {
           speedSetting = parseInt(this.value, 10);
           sliderAtivo = true;
         });
-        speedRange.addEventListener('mouseup', function() {
+        speedRange.addEventListener("mouseup", function () {
           speedSetting = 0;
           sliderAtivo = false;
           speedRange.value = 0;
         });
-        speedRange.addEventListener('touchend', function() {
+        speedRange.addEventListener("touchend", function () {
           speedSetting = 0;
           sliderAtivo = false;
           speedRange.value = 0;
         });
-        
+
         // =============================
         // Configuração da Simulação Temporal
         // =============================
         const refDate = new Date();
         dateInput.value = formatDate(refDate);
         let simulationTime = 0; // tempo da simulação em dias
-        
+
         function formatDate(date) {
           const yyyy = date.getFullYear();
-          const mm = String(date.getMonth() + 1).padStart(2, '0');
-          const dd = String(date.getDate()).padStart(2, '0');
+          const mm = String(date.getMonth() + 1).padStart(2, "0");
+          const dd = String(date.getDate()).padStart(2, "0");
           return `${yyyy}-${mm}-${dd}`;
         }
-        
+
         // Slider em 0: 0.25 dia por segundo
         function getSpeedFactor(speed) {
-          switch(speed) {
-            case -3: return -3650 * 0.25;
-            case -2: return -365 * 0.25;
-            case -1: return -30 * 0.25;
-            case  0: return 0.25;
-            case  1: return 30 * 0.25;
-            case  2: return 365 * 0.25;
-            case  3: return 3650 * 0.25;
-            default: return 0.25;
+          switch (speed) {
+            case -3:
+              return -3650 * 0.25;
+            case -2:
+              return -365 * 0.25;
+            case -1:
+              return -30 * 0.25;
+            case 0:
+              return 0.25;
+            case 1:
+              return 30 * 0.25;
+            case 2:
+              return 365 * 0.25;
+            case 3:
+              return 3650 * 0.25;
+            default:
+              return 0.25;
           }
         }
-        
-        dateInput.addEventListener('change', function(){
+
+        dateInput.addEventListener("change", function () {
           let newDate = new Date(this.value);
           simulationTime = (newDate - refDate) / 86400000;
         });
-        
+
         // =============================
         // Criação do Sol e Iluminação
         // =============================
@@ -295,7 +308,7 @@
         sun.castShadow = false;
         sun.receiveShadow = false;
         scene.add(sun);
-        
+
         const sunLight = new THREE.PointLight(0xffffff, 2, 10000);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 1024;
@@ -305,7 +318,7 @@
         sunLight.shadow.bias = -0.005;
         sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
-        
+
         const sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         const sunSurfaceTexture = textureLoader.load("sun-surface.png");
         const sunSurfaceMaterial = new THREE.MeshPhongMaterial({
@@ -313,64 +326,71 @@
           transparent: true,
           opacity: 0.7,
           emissive: 0xffaa00,
-          emissiveIntensity: 0.5
+          emissiveIntensity: 0.5,
         });
         const sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
         sunSurfaceLayer.castShadow = false;
         sunSurfaceLayer.receiveShadow = false;
         sun.add(sunSurfaceLayer);
-        
+
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
-        // Valores para que 1 Terra = 1 na escala do modelo
+        // 1 Terra = 1 na escala do modelo
         const planetsData = [
-          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 0.38 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 0.95 },
-          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45, size: 1.0 },
-          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6, size: 0.53 },
-          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45, size: 1.0 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, size: 11.21 },
-          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7, size: 9.14 },
-          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 4.01 },
-          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 3.88 }
+          { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005, Ω: 48.331, ω: 29.124, M0: 174.796, period: 87.97, rotationPeriod: 1407.6, size: 0.38 },
+          { name: "Vênus", a: 0.723, e: 0.0068, i: 3.394, Ω: 76.680, ω: 54.884, M0: 50.115, period: 224.70, rotationPeriod: -5832, size: 0.95 },
+          { name: "Terra", a: 1.000, e: 0.0167, i: 0.000, Ω: 0.000, ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24, axialTilt: 45, size: 1.0 },
+          { name: "Marte", a: 1.524, e: 0.0934, i: 1.850, Ω: 49.558, ω: 286.502, M0: 19.373, period: 686.980, rotationPeriod: 24.6, size: 0.53 },
+          { name: "Nope", a: 1.59, e: 0.3, i: 90.0, Ω: 0.0, ω: 0.0, M0: 0.0, period: 730, rotationPeriod: 26, axialTilt: 45, size: 1.0 },
+          { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304, Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59, rotationPeriod: 9.9, size: 11.21 },
+          { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485, Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22, rotationPeriod: 10.7, size: 9.14 },
+          { name: "Urano", a: 19.191, e: 0.0463, i: 0.773, Ω: 74.006, ω: 96.998, M0: 142.238, period: 30685.4, rotationPeriod: 17.2, size: 4.01 },
+          { name: "Netuno", a: 30.07, e: 0.0086, i: 1.770, Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1, size: 3.88 }
         ];
-        // Garante que cada planeta possua um array de luas
-        planetsData.forEach(planet => {
+        // Garante que cada planeta tenha um array de luas
+        planetsData.forEach((planet) => {
           if (!planet.moons) {
             planet.moons = [];
           }
         });
-        
+
         const textureMap = {
-          "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
-          "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
-          "Terra":   { texture:"earth-texture.jpg", displacement:"earth-displacement.jpg", fallbackColor:0xffffff },
-          "Marte":   { texture:"mars-texture.jpg", displacement:"mars-displacement.jpg", fallbackColor:0xffffff },
-          "Nope":    { texture:"nope-texture.jpg", displacement:"nope-displacement.jpg", fallbackColor:0xffffff },
-          "Júpiter": { texture:"jupiter-texture.jpg", displacement:"jupiter-displacement.jpg", fallbackColor:0xffffff },
-          "Saturno": { texture:"saturn-texture.jpg", displacement:"saturn-displacement.jpg", fallbackColor:0xffffff },
-          "Urano":   { texture:"uranus-texture.jpg", displacement:"uranus-displacement.jpg", fallbackColor:0xffffff },
-          "Netuno":  { texture:"neptune-texture.jpg", displacement:"neptune-displacement.jpg", fallbackColor:0xffffff }
+          "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
+          "Vênus": { texture: "venus-texture.jpg", displacement: "venus-displacement.jpg", fallbackColor: 0xffffff },
+          "Terra": { texture: "earth-texture.jpg", displacement: "earth-displacement.jpg", fallbackColor: 0xffffff },
+          "Marte": { texture: "mars-texture.jpg", displacement: "mars-displacement.jpg", fallbackColor: 0xffffff },
+          "Nope": { texture: "nope-texture.jpg", displacement: "nope-displacement.jpg", fallbackColor: 0xffffff },
+          "Júpiter": { texture: "jupiter-texture.jpg", displacement: "jupiter-displacement.jpg", fallbackColor: 0xffffff },
+          "Saturno": { texture: "saturn-texture.jpg", displacement: "saturn-displacement.jpg", fallbackColor: 0xffffff },
+          "Urano": { texture: "uranus-texture.jpg", displacement: "uranus-displacement.jpg", fallbackColor: 0xffffff },
+          "Netuno": { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0xffffff }
         };
-        
+
         let planets = [];
         let nopeMesh, earthMesh;
-        planetsData.forEach(planetData => {
-          let geometry = new THREE.SphereGeometry(planetData.size, 
-                              (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16, 
-                              (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16);
+        planetsData.forEach((planetData) => {
+          let geometry = new THREE.SphereGeometry(
+            planetData.size,
+            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") ? 320 : 16,
+            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") ? 320 : 16
+          );
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
           let material;
-          if (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") {
-            material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, displacementMap: displacement, displacementScale: planetData.size * 0.025 });
+          if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
+            material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              map: texture,
+              displacementMap: displacement,
+              displacementScale: planetData.size * 0.025,
+            });
           } else {
             material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
-          
-          if(planetData.name==="Terra" || planetData.name==="Nope") {
+
+          if (planetData.name === "Terra" || planetData.name === "Nope") {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -383,8 +403,12 @@
             planetData.pivot = pivot;
             planetData.tiltGroup = tiltGroup;
             planetData.mesh = mesh;
-            if(planetData.name==="Nope") { nopeMesh = pivot; }
-            if(planetData.name==="Terra") { earthMesh = pivot; }
+            if (planetData.name === "Nope") {
+              nopeMesh = pivot;
+            }
+            if (planetData.name === "Terra") {
+              earthMesh = pivot;
+            }
           } else {
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
@@ -394,27 +418,34 @@
           }
           planetData.baseSize = planetData.size; // Guarda o tamanho base para referência
           planets.push(planetData);
-          
-          const orbitPoints = (function(planet, numPoints=200){
+
+          const orbitPoints = (function (planet, numPoints = 200) {
             let pts = [];
-            let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
-                Ω = THREE.Math.degToRad(planet.Ω), ω = THREE.Math.degToRad(planet.ω);
-            for(let j=0; j<=numPoints; j++){
-              let f = 2 * Math.PI * j / numPoints;
-              let r = a * (1 - e * e) / (1 + e * Math.cos(f));
-              let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
-              let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
-              let Z = r * (Math.sin(ω+f) * Math.sin(i));
+            let a = planet.a,
+              e = planet.e,
+              i = THREE.Math.degToRad(planet.i),
+              Ω = THREE.Math.degToRad(planet.Ω),
+              ω = THREE.Math.degToRad(planet.ω);
+            for (let j = 0; j <= numPoints; j++) {
+              let f = (2 * Math.PI * j) / numPoints;
+              let r = (a * (1 - e * e)) / (1 + e * Math.cos(f));
+              let X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
+              let Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
+              let Z = r * (Math.sin(ω + f) * Math.sin(i));
               pts.push(new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale));
             }
             return pts;
           })(planetData);
           const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-          const orbitMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+          const orbitMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            opacity: 0.3,
+            transparent: true,
+          });
           const orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
           scene.add(orbitLine);
-          
-          // Cria grupo para luas, se não existir
+
+          // Cria grupo para luas, se ainda não existir
           if (!planetData.moonGroup) {
             planetData.moonGroup = new THREE.Group();
             if (planetData.pivot) {
@@ -423,15 +454,14 @@
               planetData.mesh.add(planetData.moonGroup);
             }
           }
-          
           // Para cada lua já definida, cria sua mesh se necessário
-          planetData.moons.forEach(moon => {
+          planetData.moons.forEach((moon) => {
             if (!moon.mesh) {
               createMoonMesh(planetData, moon);
             }
           });
         });
-        
+
         // =============================
         // Função para criar a mesh de uma lua e adicioná-la ao grupo do planeta
         // =============================
@@ -452,16 +482,16 @@
           }
           planet.moonGroup.add(mesh);
         }
-        
+
         // =============================
         // Função para atualizar a posição das luas de cada planeta
         // =============================
         function updateMoons() {
-          planets.forEach(planet => {
+          planets.forEach((planet) => {
             if (planet.moonGroup && planet.moons && planet.moons.length > 0) {
-              planet.moons.forEach(moon => {
-                let M0 = moon.M0 * Math.PI / 180;
-                let n = 2 * Math.PI / moon.period;
+              planet.moons.forEach((moon) => {
+                let M0 = (moon.M0 * Math.PI) / 180;
+                let n = (2 * Math.PI) / moon.period;
                 let M = (M0 + n * simulationTime) % (2 * Math.PI);
                 let E = M;
                 let delta = 1;
@@ -469,11 +499,14 @@
                   delta = (E - moon.e * Math.sin(E) - M) / (1 - moon.e * Math.cos(E));
                   E = E - delta;
                 }
-                let f = 2 * Math.atan2(Math.sqrt(1 + moon.e) * Math.sin(E / 2), Math.sqrt(1 - moon.e) * Math.cos(E / 2));
+                let f = 2 * Math.atan2(
+                  Math.sqrt(1 + moon.e) * Math.sin(E / 2),
+                  Math.sqrt(1 - moon.e) * Math.cos(E / 2)
+                );
                 let r = moon.a * (1 - moon.e * Math.cos(E));
-                let i_rad = moon.i * Math.PI / 180;
-                let Ω_rad = moon.Ω * Math.PI / 180;
-                let ω_rad = moon.ω * Math.PI / 180;
+                let i_rad = (moon.i * Math.PI) / 180;
+                let Ω_rad = (moon.Ω * Math.PI) / 180;
+                let ω_rad = (moon.ω * Math.PI) / 180;
                 let pos = new THREE.Vector3(
                   r * (Math.cos(Ω_rad) * Math.cos(ω_rad + f) - Math.sin(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
                   r * (Math.sin(Ω_rad) * Math.cos(ω_rad + f) + Math.cos(Ω_rad) * Math.sin(ω_rad + f) * Math.cos(i_rad)),
@@ -486,12 +519,18 @@
             }
           });
         }
-        
+
         // =============================
         // Função de Zoom Interpolado
         // =============================
+        // Cria o mapeamento dos alvos para zoom.
+        const targetObjects = {};
+        targetObjects["Sol"] = sun;
+        planets.forEach((planet) => {
+          targetObjects[planet.name] = planet.pivot ? planet.pivot : planet.mesh;
+        });
         let currentTarget = targetObjects[targetSelect.value];
-        targetSelect.addEventListener('change', function(){
+        targetSelect.addEventListener("change", function () {
           currentTarget = targetObjects[this.value];
         });
         function updateControlsTarget() {
@@ -510,9 +549,9 @@
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
           let L = new THREE.Vector3().subVectors(camera.position, projectionPoint).length();
           let t;
-          if(L > 200) {
+          if (L > 200) {
             t = 0;
-          } else if(L < 50) {
+          } else if (L < 50) {
             t = 1;
           } else {
             t = (200 - L) / 150;
@@ -520,7 +559,7 @@
           let newTarget = new THREE.Vector3().lerpVectors(sun.position, currentTarget.position, t);
           controls.target.copy(newTarget);
         }
-        
+
         // =============================
         // Loop de Animação
         // =============================
@@ -530,29 +569,37 @@
           const now = performance.now();
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
-          
+
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           if (document.activeElement !== dateInput) {
             dateInput.value = formatDate(simDate);
           }
-          
-          planets.forEach(planet => {
-            const pos = (function(planet, time) {
-              const a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
-                    Ω = THREE.Math.degToRad(planet.Ω), ω = THREE.Math.degToRad(planet.ω),
-                    M0 = THREE.Math.degToRad(planet.M0), period = planet.period;
+
+          planets.forEach((planet) => {
+            const pos = (function (planet, time) {
+              const a = planet.a,
+                e = planet.e,
+                i = THREE.Math.degToRad(planet.i),
+                Ω = THREE.Math.degToRad(planet.Ω),
+                ω = THREE.Math.degToRad(planet.ω),
+                M0 = THREE.Math.degToRad(planet.M0),
+                period = planet.period;
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
-              const E = (function(M, e, tolerance = 1e-6) {
-                let E = M, delta = 1;
+              const E = (function (M, e, tolerance = 1e-6) {
+                let E = M,
+                  delta = 1;
                 while (Math.abs(delta) > tolerance) {
                   delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
                   E = E - delta;
                 }
                 return E;
               })(M, e);
-              const f = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+              const f = 2 * Math.atan2(
+                Math.sqrt(1 + e) * Math.sin(E / 2),
+                Math.sqrt(1 - e) * Math.cos(E / 2)
+              );
               const r = a * (1 - e * Math.cos(E));
               const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
@@ -565,8 +612,8 @@
               planet.mesh.position.copy(pos);
             }
           });
-          
-          planets.forEach(planet => {
+
+          planets.forEach((planet) => {
             if (planet.rotationPeriod) {
               const rotationPeriodDays = planet.rotationPeriod / 24;
               const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
@@ -577,37 +624,25 @@
               }
             }
           });
-          
+
           updateMoons();
-          
           updateControlsTarget();
           controls.update();
           renderer.render(scene, camera);
         }
         animate();
-        
+
         // =============================
         // Configuração do Menu Compacto
         // =============================
-        configButton.addEventListener('click', function() {
-          configMenu.style.display = 'block';
+        configButton.addEventListener("click", function () {
+          configMenu.style.display = "block";
           buildConfigMenu();
         });
-        configClose.addEventListener('click', function() {
-          configMenu.style.display = 'none';
+        configClose.addEventListener("click", function () {
+          configMenu.style.display = "none";
         });
-        
-        // Mapeamento dos alvos para zoom
-        const targetObjects = {};
-        targetObjects["Sol"] = sun;
-        planets.forEach(function(planet) {
-          targetObjects[planet.name] = (planet.pivot ? planet.pivot : planet.mesh);
-        });
-        targetSelect.addEventListener('change', function(){
-          currentTarget = targetObjects[this.value];
-        });
-        let currentTarget = targetObjects[targetSelect.value];
-        
+
         // Rótulos descritivos para as propriedades do planeta
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
@@ -619,50 +654,63 @@
           period: "Período Orbital (dias)",
           rotationPeriod: "Período de Rotação (horas)",
           axialTilt: "Inclinação do Eixo (°)",
-          size: "Tamanho (em Terras)"
+          size: "Tamanho (em Terras)",
         };
-        
-        planetsData.forEach(planet => {
+
+        planetsData.forEach((planet) => {
           if (planet.axialTilt === undefined) {
             planet.axialTilt = 0;
           }
         });
-        
+
         // Função para construir o menu de configuração do planeta, incluindo abas para luas
         function buildConfigMenu() {
-          configTabs.innerHTML = '';
-          configContent.innerHTML = '';
+          configTabs.innerHTML = "";
+          configContent.innerHTML = "";
           planetsData.forEach((planet, index) => {
-            const tab = document.createElement('div');
-            tab.className = 'config-tab';
+            const tab = document.createElement("div");
+            tab.className = "config-tab";
             tab.textContent = planet.name;
             tab.dataset.index = index;
-            tab.addEventListener('click', function() {
-              document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
-              this.classList.add('active');
+            tab.addEventListener("click", function () {
+              document
+                .querySelectorAll(".config-tab")
+                .forEach((t) => t.classList.remove("active"));
+              this.classList.add("active");
               buildConfigContent(planet);
             });
             configTabs.appendChild(tab);
             if (index === 0) {
-              tab.classList.add('active');
+              tab.classList.add("active");
               buildConfigContent(planet);
             }
           });
         }
-        
+
         // Função para construir o conteúdo de configuração do planeta, incluindo a área de configuração das luas
         function buildConfigContent(planet) {
-          configContent.innerHTML = '';
-          const props = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
-          props.forEach(prop => {
-            const label = document.createElement('label');
-            label.textContent = (propertyLabels[prop] || prop) + ':';
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.step = '0.1';
-            if (prop === 'size') {
+          configContent.innerHTML = "";
+          const props = [
+            "a",
+            "e",
+            "i",
+            "Ω",
+            "ω",
+            "M0",
+            "period",
+            "rotationPeriod",
+            "axialTilt",
+            "size",
+          ];
+          props.forEach((prop) => {
+            const label = document.createElement("label");
+            label.textContent = (propertyLabels[prop] || prop) + ":";
+            const input = document.createElement("input");
+            input.type = "number";
+            input.step = "0.1";
+            if (prop === "size") {
               input.value = planet[prop];
-              input.addEventListener('change', function() {
+              input.addEventListener("change", function () {
                 let newVal = parseFloat(this.value);
                 planet[prop] = newVal;
                 const scaleFactor = planet[prop] / planet.baseSize;
@@ -674,49 +722,52 @@
               });
             } else {
               input.value = planet[prop];
-              input.addEventListener('change', function() {
+              input.addEventListener("change", function () {
                 planet[prop] = parseFloat(this.value);
               });
             }
             configContent.appendChild(label);
             configContent.appendChild(input);
           });
-          
+
           // Área de configuração das luas
-          const moonsContainer = document.createElement('div');
-          moonsContainer.className = 'moons-container';
-          
-          const moonsTabs = document.createElement('div');
-          moonsTabs.className = 'moons-tabs';
-          
-          const moonsContent = document.createElement('div');
-          moonsContent.className = 'moons-content';
-          
+          const moonsContainer = document.createElement("div");
+          moonsContainer.className = "moons-container";
+
+          const moonsTabs = document.createElement("div");
+          moonsTabs.className = "moons-tabs";
+
+          const moonsContent = document.createElement("div");
+          moonsContent.className = "moons-content";
+
           function buildMoonsTabs() {
-            moonsTabs.innerHTML = '';
+            moonsTabs.innerHTML = "";
             planet.moons.forEach((moon, index) => {
-              const tab = document.createElement('div');
-              tab.className = 'moon-tab';
-              tab.textContent = moon.name || ("Lua " + (index + 1));
+              const tab = document.createElement("div");
+              tab.className = "moon-tab";
+              tab.textContent = moon.name || "Lua " + (index + 1);
               tab.dataset.index = index;
-              tab.addEventListener('click', function() {
-                document.querySelectorAll('.moon-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
+              tab.addEventListener("click", function () {
+                document
+                  .querySelectorAll(".moon-tab")
+                  .forEach((t) => t.classList.remove("active"));
+                this.classList.add("active");
                 buildMoonsContent(moon);
               });
-              tab.addEventListener('dblclick', function() {
+              tab.addEventListener("dblclick", function () {
                 const newName = prompt("Novo nome para a lua:", tab.textContent);
-                if(newName) {
+                if (newName) {
                   tab.textContent = newName;
                   moon.name = newName;
                 }
               });
               moonsTabs.appendChild(tab);
             });
-            const addTab = document.createElement('div');
-            addTab.className = 'moon-tab add-moon';
+            // Aba para adicionar nova lua
+            const addTab = document.createElement("div");
+            addTab.className = "moon-tab add-moon";
             addTab.textContent = "+";
-            addTab.addEventListener('click', function() {
+            addTab.addEventListener("click", function () {
               const newMoon = {
                 name: "Nova Lua",
                 a: 0.1,
@@ -728,7 +779,7 @@
                 period: 1,
                 rotationPeriod: 1,
                 axialTilt: 0,
-                size: 0.1
+                size: 0.1,
               };
               planet.moons.push(newMoon);
               createMoonMesh(planet, newMoon);
@@ -736,36 +787,46 @@
             });
             moonsTabs.appendChild(addTab);
           }
-          
+
           function buildMoonsContent(moon) {
-            moonsContent.innerHTML = '';
-            const moonProps = ['a', 'e', 'i', 'Ω', 'ω', 'M0', 'period', 'rotationPeriod', 'axialTilt', 'size'];
-            moonProps.forEach(prop => {
-              const label = document.createElement('label');
-              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ':';
-              const input = document.createElement('input');
-              input.type = 'number';
-              input.step = '0.1';
+            moonsContent.innerHTML = "";
+            const moonProps = [
+              "a",
+              "e",
+              "i",
+              "Ω",
+              "ω",
+              "M0",
+              "period",
+              "rotationPeriod",
+              "axialTilt",
+              "size",
+            ];
+            moonProps.forEach((prop) => {
+              const label = document.createElement("label");
+              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ":";
+              const input = document.createElement("input");
+              input.type = "number";
+              input.step = "0.1";
               input.value = moon[prop];
-              input.addEventListener('change', function() {
+              input.addEventListener("change", function () {
                 moon[prop] = parseFloat(this.value);
               });
               moonsContent.appendChild(label);
               moonsContent.appendChild(input);
             });
           }
-          
+
           buildMoonsTabs();
-          
-          const moonsTitle = document.createElement('h3');
+
+          const moonsTitle = document.createElement("h3");
           moonsTitle.textContent = "Luass";
-          configContent.appendChild(document.createElement('hr'));
+          configContent.appendChild(document.createElement("hr"));
           configContent.appendChild(moonsTitle);
           moonsContainer.appendChild(moonsTabs);
           moonsContainer.appendChild(moonsContent);
           configContent.appendChild(moonsContainer);
         }
-        
       })();
     </script>
   </body>
