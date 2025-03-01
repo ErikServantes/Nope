@@ -355,7 +355,7 @@
             rotationPeriod: 24,
             axialTilt: 45,
             size: 1.0,
-            // Ajustado para que a Lua da Terra orbite fora do planeta
+            // A lua da Terra já definida tem "a" = 1.5 para orbitar fora do planeta
             moons: [
               {
                 name: "Lua da Terra",
@@ -385,7 +385,7 @@
             rotationPeriod: 26,
             axialTilt: 45,
             size: 1.0,
-            // Ajustado para que a Lua de Nope orbite fora do planeta
+            // A lua de Nope já definida tem "a" = 1.0 para orbitar fora do planeta
             moons: [
               {
                 name: "Lua de Nope",
@@ -426,10 +426,14 @@
         planetsData.forEach((planetData) => {
           let geometry = new THREE.SphereGeometry(
             planetData.size,
-            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope")
+            (planetData.name === "Terra" ||
+              planetData.name === "Marte" ||
+              planetData.name === "Nope")
               ? 320
               : 16,
-            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope")
+            (planetData.name === "Terra" ||
+              planetData.name === "Marte" ||
+              planetData.name === "Nope")
               ? 320
               : 16
           );
@@ -437,7 +441,11 @@
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
           let material;
-          if (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope") {
+          if (
+            planetData.name === "Terra" ||
+            planetData.name === "Marte" ||
+            planetData.name === "Nope"
+          ) {
             material = new THREE.MeshStandardMaterial({
               color: 0xffffff,
               map: texture,
@@ -445,10 +453,16 @@
               displacementScale: planetData.size * 0.025,
             });
           } else {
-            material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
+            material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              map: texture,
+            });
           }
 
-          if (planetData.name === "Terra" || planetData.name === "Nope") {
+          if (
+            planetData.name === "Terra" ||
+            planetData.name === "Nope"
+          ) {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -822,14 +836,14 @@
               });
               moonsTabs.appendChild(tab);
             });
-            // Aba para adicionar nova lua
+            // Aba para adicionar nova lua – note que o novo valor de "a" foi aumentado para 1.2
             const addTab = document.createElement("div");
             addTab.className = "moon-tab add-moon";
             addTab.textContent = "+";
             addTab.addEventListener("click", function () {
               const newMoon = {
                 name: "Nova Lua",
-                a: 0.5,
+                a: 1.2, // Valor aumentado para garantir que ela fique fora do planeta
                 e: 0,
                 i: 0,
                 Ω: 0,
@@ -863,8 +877,8 @@
             ];
             moonProps.forEach((prop) => {
               const label = document.createElement("label");
-              // Se for o parâmetro "a" para a lua, utiliza um rótulo especial
               if (prop === "a") {
+                // Rótulo especial para a distância à superfície do planeta
                 label.textContent = "Lua distância à superfície do planeta:";
               } else {
                 label.textContent = "Lua " + (propertyLabels[prop] || prop) + ":";
