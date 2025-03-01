@@ -56,15 +56,18 @@
       /* Estilo do menu de configuração compacto */
       #configMenu {
         position: absolute;
-        top: 60px;
+        top: 60px; /* Abaixo do botão de configuração */
         left: 10px;
-        background: rgba(0, 0, 0, 0.9);
+        /* Fundo 90% transparente: 10% opaco */
+        background: rgba(0, 0, 0, 0.1);
         padding: 10px;
         border: 1px solid #555;
         border-radius: 5px;
         z-index: 1000;
         display: none;
         max-width: 300px;
+        max-height: 90vh;
+        overflow-y: auto;
       }
       #configMenu .config-header {
         display: flex;
@@ -340,8 +343,19 @@
         const planetsData = [
           { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005, Ω: 48.331, ω: 29.124, M0: 174.796, period: 87.97, rotationPeriod: 1407.6, size: 0.38, moons: [] },
           { name: "Vênus", a: 0.723, e: 0.0068, i: 3.394, Ω: 76.680, ω: 54.884, M0: 50.115, period: 224.70, rotationPeriod: -5832, size: 0.95, moons: [] },
-          { name: "Terra", a: 1.000, e: 0.0167, i: 0.000, Ω: 0.000, ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24, axialTilt: 45, size: 1.0,
-            // Aumentei o semieixo da Lua da Terra para 1.5 para que fique visível fora da esfera do planeta
+          {
+            name: "Terra",
+            a: 1.000,
+            e: 0.0167,
+            i: 0.000,
+            Ω: 0.000,
+            ω: 102.937,
+            M0: 357.517,
+            period: 365.256,
+            rotationPeriod: 24,
+            axialTilt: 45,
+            size: 1.0,
+            // Ajustado para que a Lua da Terra orbite fora do planeta (valor aumentado)
             moons: [
               {
                 name: "Lua da Terra",
@@ -359,8 +373,19 @@
             ],
           },
           { name: "Marte", a: 1.524, e: 0.0934, i: 1.850, Ω: 49.558, ω: 286.502, M0: 19.373, period: 686.980, rotationPeriod: 24.6, size: 0.53, moons: [] },
-          { name: "Nope", a: 1.59, e: 0.3, i: 90.0, Ω: 0.0, ω: 0.0, M0: 0.0, period: 730, rotationPeriod: 26, axialTilt: 45, size: 1.0,
-            // Aumentei o semieixo da Lua de Nope para 1.0
+          {
+            name: "Nope",
+            a: 1.59,
+            e: 0.3,
+            i: 90.0,
+            Ω: 0.0,
+            ω: 0.0,
+            M0: 0.0,
+            period: 730,
+            rotationPeriod: 26,
+            axialTilt: 45,
+            size: 1.0,
+            // Ajustado para que a Lua de Nope orbite fora do planeta
             moons: [
               {
                 name: "Lua de Nope",
