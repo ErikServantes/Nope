@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nope v1.5 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.1 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -123,7 +123,7 @@
     </style>
   </head>
   <body>
-    <!-- Interface de Controle: Botão de Configuração, Dropdown (alvo), Calendário e Slider -->
+    <!-- Interface de Controle -->
     <div id="ui">
       <button id="configButton">Configurações</button>
       <select id="targetSelect">
@@ -162,7 +162,7 @@
     
     <script>
       (function(){
-        // Fator de escala para as órbitas: usamos o valor original 50
+        // Fator de escala para os orbitais (valor original)
         const orbitScale = 50;
         
         // =============================
@@ -235,7 +235,7 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
-        // Agora, quando o slider estiver em 0, avançamos 0.25 dia por segundo.
+        // Agora, com slider em 0, avançamos 0.25 dia/segundo
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
@@ -294,19 +294,19 @@
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
-        // Valores em "Terras" convertidos (1 Terra = 3.5)
+        // Atualizamos os valores para que 1 Terra = 1 na escala do modelo.
         const planetsData = [
-          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 1.33 },
-          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 3.33 },
-          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45, size: 3.5 },
-          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6, size: 1.86 },
-          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45, size: 3 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, size: 39.24 },
-          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7, size: 32.00 },
-          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 14.04 },
-          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 13.58 }
+          { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 0.38 },
+          { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 0.95 },
+          { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45, size: 1.0 },
+          { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6, size: 0.53 },
+          { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45, size: 1.0 },
+          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, size: 11.21 },
+          { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7, size: 9.14 },
+          { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 4.01 },
+          { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 3.88 }
         ];
-        // Os valores de "size" já estão em unidades reais (1 Terra = 3.5)
+        // Os valores de "size" estão agora na escala desejada.
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -357,9 +357,10 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          planetData.baseSize = planetData.size; // Guarda o tamanho original para referência
+          planetData.baseSize = planetData.size; // Guarda o tamanho base para referência
           planets.push(planetData);
           
+          // Cria a órbita do planeta com o valor original de escala (50)
           const orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -461,23 +462,19 @@
         // Função de Zoom Interpolado
         // =============================
         function updateControlsTarget() {
-          // Se o alvo selecionado for o Sol, basta copiar sua posição
           if (currentTarget === sun) {
             controls.target.copy(sun.position);
             return;
           }
-          // Calcula o vetor entre o Sol e o alvo
           let D = new THREE.Vector3().subVectors(currentTarget.position, sun.position);
           if (D.length() === 0) {
             controls.target.copy(sun.position);
             return;
           }
           D.normalize();
-          // Projeção da posição da câmera na reta do Sol ao alvo
           let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
           let projLength = camOffset.dot(D);
           let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
-          // Distância perpendicular da câmera à linha Sol–alvo
           let L = new THREE.Vector3().subVectors(camera.position, projectionPoint).length();
           let t;
           if(L > 200) {
@@ -487,7 +484,6 @@
           } else {
             t = (200 - L) / 150;
           }
-          // Interpolação entre Sol e o alvo
           let newTarget = new THREE.Vector3().lerpVectors(sun.position, currentTarget.position, t);
           controls.target.copy(newTarget);
         }
@@ -631,12 +627,12 @@
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
-            // Para o parâmetro "size", converter para "Terras" (1 Terra = 3.5)
+            // Para o parâmetro "size", agora 1 Terra equivale a 1, sem conversão
             if (prop === 'size') {
-              input.value = planet[prop] / 3.5;
+              input.value = planet[prop];
               input.addEventListener('change', function() {
-                let newEarthUnits = parseFloat(this.value);
-                planet[prop] = newEarthUnits * 3.5;
+                let newValue = parseFloat(this.value);
+                planet[prop] = newValue;
                 const scaleFactor = planet[prop] / planet.baseSize;
                 if (planet.pivot && planet.tiltGroup && planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
