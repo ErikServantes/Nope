@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.5 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.6 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -58,7 +58,8 @@
         position: absolute;
         top: 60px; /* Abaixo do botão de configuração */
         left: 10px;
-        background: rgba(0, 0, 0, 0.1); /* 90% transparente */
+        /* Fundo 90% transparente: 10% opaco */
+        background: rgba(0, 0, 0, 0.1);
         padding: 10px;
         border: 1px solid #555;
         border-radius: 5px;
@@ -455,18 +456,27 @@
             material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
 
-          if (planetData.name === "Terra" || planetData.name === "Nope") {
+          // Se o planeta possui axialTilt (por exemplo, Terra, Nope ou outros que o definam)
+          if (planetData.axialTilt !== undefined) {
+            // Criamos um grupo "pivot" para a posição orbital
             let pivot = new THREE.Group();
-            let tiltGroup = new THREE.Group();
-            pivot.add(tiltGroup);
+            // Dentro do pivot, criamos um grupo "spinGroup" que receberá o giro do planeta
+            let spinGroup = new THREE.Group();
+            pivot.add(spinGroup);
+            // Dentro do spinGroup, criamos um "axisGroup" que receberá a inclinação do eixo (axial tilt)
+            let axisGroup = new THREE.Group();
+            spinGroup.add(axisGroup);
+            // Cria o mesh do planeta e adiciona ao axisGroup
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            tiltGroup.add(mesh);
-            tiltGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
+            axisGroup.add(mesh);
+            // Aplica o axial tilt (rotaciona o axisGroup de forma fixa)
+            axisGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
             scene.add(pivot);
             planetData.pivot = pivot;
-            planetData.tiltGroup = tiltGroup;
+            planetData.spinGroup = spinGroup;
+            planetData.axisGroup = axisGroup;
             planetData.mesh = mesh;
             if (planetData.name === "Nope") {
               nopeMesh = pivot;
@@ -475,6 +485,7 @@
               earthMesh = pivot;
             }
           } else {
+            // Se não houver axialTilt definido, cria normalmente
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -484,7 +495,7 @@
           planetData.baseSize = planetData.size; // Guarda o tamanho base para referência
           planets.push(planetData);
 
-          // Cria a órbita do planeta e armazena a linha na propriedade orbitLine
+          // Cria a órbita do planeta e armazena a linha em planetData.orbitLine
           const orbitPoints = (function (planet, numPoints = 200) {
             let pts = [];
             let a = planet.a,
@@ -510,7 +521,7 @@
           });
           const orbitLine = new THREE.LineLoop(orbitGeometry, orbitMaterial);
           scene.add(orbitLine);
-          // Armazena a linha de órbita no objeto do planeta para recálculo futuro
+          // Armazena a linha de órbita para recálculo futuro
           planetData.orbitLine = orbitLine;
 
           // Cria grupo para luas se não existir
@@ -530,7 +541,7 @@
           });
         });
 
-        // Função para recalcular a órbita do planeta quando os parâmetros são alterados
+        // Função para recalcular a órbita do planeta sempre que algum parâmetro que a influencia for alterado
         function recalcOrbit(planet) {
           let numPoints = 200;
           let pts = [];
@@ -661,6 +672,7 @@
             dateInput.value = formatDate(simDate);
           }
 
+          // Atualiza a posição dos planetas
           planets.forEach((planet) => {
             const pos = (function (planet, time) {
               const a = planet.a,
@@ -673,7 +685,8 @@
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               const E = (function (M, e, tolerance = 1e-6) {
-                let E = M, delta = 1;
+                let E = M,
+                  delta = 1;
                 while (Math.abs(delta) > tolerance) {
                   delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
                   E = E - delta;
@@ -697,13 +710,15 @@
             }
           });
 
+          // Atualiza a rotação dos planetas (para simular o spin)
           planets.forEach((planet) => {
             if (planet.rotationPeriod) {
               const rotationPeriodDays = planet.rotationPeriod / 24;
               const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
-              if (planet.pivot && planet.tiltGroup) {
-                planet.tiltGroup.rotation.y = angle;
-              } else {
+              // Se o planeta possui spinGroup (ou axisGroup) aplicamos a rotação no spinGroup
+              if (planet.spinGroup) {
+                planet.spinGroup.rotation.y = angle;
+              } else if (planet.mesh) {
                 planet.mesh.rotation.y = angle;
               }
             }
@@ -798,7 +813,7 @@
                 let newVal = parseFloat(this.value);
                 planet[prop] = newVal;
                 const scaleFactor = planet[prop] / planet.baseSize;
-                if (planet.pivot && planet.tiltGroup && planet.mesh) {
+                if (planet.pivot && planet.spinGroup && planet.axisGroup && planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
                 } else if (planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
