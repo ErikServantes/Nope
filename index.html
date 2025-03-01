@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.3 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.4 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -355,7 +355,7 @@
             rotationPeriod: 24,
             axialTilt: 45,
             size: 1.0,
-            // A lua da Terra já definida tem "a" = 1.5 para orbitar fora do planeta
+            // Lua da Terra: "a" agora é a distância à superfície, e seu valor é 1.5
             moons: [
               {
                 name: "Lua da Terra",
@@ -385,7 +385,7 @@
             rotationPeriod: 26,
             axialTilt: 45,
             size: 1.0,
-            // A lua de Nope já definida tem "a" = 1.0 para orbitar fora do planeta
+            // Lua de Nope: "a" agora é 1.0 para orbitar fora do planeta
             moons: [
               {
                 name: "Lua de Nope",
@@ -453,16 +453,10 @@
               displacementScale: planetData.size * 0.025,
             });
           } else {
-            material = new THREE.MeshStandardMaterial({
-              color: 0xffffff,
-              map: texture,
-            });
+            material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
 
-          if (
-            planetData.name === "Terra" ||
-            planetData.name === "Nope"
-          ) {
+          if (planetData.name === "Terra" || planetData.name === "Nope") {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
             pivot.add(tiltGroup);
@@ -577,7 +571,9 @@
                   Math.sqrt(1 + moon.e) * Math.sin(E / 2),
                   Math.sqrt(1 - moon.e) * Math.cos(E / 2)
                 );
-                let r = moon.a * (1 - moon.e * Math.cos(E));
+                // Agora, a distância r é calculada a partir da superfície do planeta:
+                // A distância do centro do planeta à lua é planet.size + [moon.a * (1 - e cosE)]
+                let r = planet.size + moon.a * (1 - moon.e * Math.cos(E));
                 let i_rad = (moon.i * Math.PI) / 180;
                 let Ω_rad = (moon.Ω * Math.PI) / 180;
                 let ω_rad = (moon.ω * Math.PI) / 180;
@@ -836,14 +832,14 @@
               });
               moonsTabs.appendChild(tab);
             });
-            // Aba para adicionar nova lua – note que o novo valor de "a" foi aumentado para 1.2
+            // Aba para adicionar nova lua – com valor "a" aumentado para 1.2
             const addTab = document.createElement("div");
             addTab.className = "moon-tab add-moon";
             addTab.textContent = "+";
             addTab.addEventListener("click", function () {
               const newMoon = {
                 name: "Nova Lua",
-                a: 1.2, // Valor aumentado para garantir que ela fique fora do planeta
+                a: 1.2,
                 e: 0,
                 i: 0,
                 Ω: 0,
@@ -878,7 +874,6 @@
             moonProps.forEach((prop) => {
               const label = document.createElement("label");
               if (prop === "a") {
-                // Rótulo especial para a distância à superfície do planeta
                 label.textContent = "Lua distância à superfície do planeta:";
               } else {
                 label.textContent = "Lua " + (propertyLabels[prop] || prop) + ":";
@@ -910,7 +905,6 @@
           buildMoonsTabs();
 
           const moonsTitle = document.createElement("h3");
-          // Corrigido o título para "Luas"
           moonsTitle.textContent = "Luas";
           configContent.appendChild(document.createElement("hr"));
           configContent.appendChild(moonsTitle);
