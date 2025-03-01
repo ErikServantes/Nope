@@ -355,7 +355,7 @@
             rotationPeriod: 24,
             axialTilt: 45,
             size: 1.0,
-            // Lua da Terra: "a" agora é a distância à superfície, e seu valor é 1.5
+            // Lua da Terra: distância à superfície = 1.5
             moons: [
               {
                 name: "Lua da Terra",
@@ -376,7 +376,7 @@
           {
             name: "Nope",
             a: 1.59,
-            e: 0.3,
+            e: 0.5,         // Atualizado para excentricidade 0.5
             i: 90.0,
             Ω: 0.0,
             ω: 0.0,
@@ -384,21 +384,21 @@
             period: 730,
             rotationPeriod: 26,
             axialTilt: 45,
-            size: 1.0,
-            // Lua de Nope: "a" agora é 1.0 para orbitar fora do planeta
+            size: 0.25,     // Atualizado para tamanho 0.25
+            // Lua de Nope: distância à superfície = 0.25, período 0.333, tamanho 0.05
             moons: [
               {
                 name: "Lua de Nope",
-                a: 1.0,
+                a: 0.25,
                 e: 0,
                 i: 0,
                 Ω: 0,
                 ω: 0,
                 M0: 0,
-                period: 1,
+                period: 0.333,
                 rotationPeriod: 1,
                 axialTilt: 0,
-                size: 0.2,
+                size: 0.05,
               },
             ],
           },
@@ -571,8 +571,8 @@
                   Math.sqrt(1 + moon.e) * Math.sin(E / 2),
                   Math.sqrt(1 - moon.e) * Math.cos(E / 2)
                 );
-                // Agora, a distância r é calculada a partir da superfície do planeta:
-                // A distância do centro do planeta à lua é planet.size + [moon.a * (1 - e cosE)]
+                // A distância agora é calculada a partir da superfície do planeta:
+                // A posição da lua = planeta.size + (moon.a * (1 - e*cosE))
                 let r = planet.size + moon.a * (1 - moon.e * Math.cos(E));
                 let i_rad = (moon.i * Math.PI) / 180;
                 let Ω_rad = (moon.Ω * Math.PI) / 180;
@@ -832,7 +832,7 @@
               });
               moonsTabs.appendChild(tab);
             });
-            // Aba para adicionar nova lua – com valor "a" aumentado para 1.2
+            // Aba para adicionar nova lua – "a" padrão é 1.2
             const addTab = document.createElement("div");
             addTab.className = "moon-tab add-moon";
             addTab.textContent = "+";
