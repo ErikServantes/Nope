@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.2 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.3 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -355,7 +355,7 @@
             rotationPeriod: 24,
             axialTilt: 45,
             size: 1.0,
-            // Ajustado para que a Lua da Terra orbite fora do planeta (valor aumentado)
+            // Ajustado para que a Lua da Terra orbite fora do planeta
             moons: [
               {
                 name: "Lua da Terra",
@@ -530,6 +530,8 @@
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           moon.mesh = mesh;
+          // Armazena o tamanho base da lua para referência
+          moon.baseSize = moon.size;
           if (!planet.moonGroup) {
             planet.moonGroup = new THREE.Group();
             if (planet.pivot) {
@@ -861,14 +863,31 @@
             ];
             moonProps.forEach((prop) => {
               const label = document.createElement("label");
-              label.textContent = "Lua " + (propertyLabels[prop] || prop) + ":";
+              // Se for o parâmetro "a" para a lua, utiliza um rótulo especial
+              if (prop === "a") {
+                label.textContent = "Lua distância à superfície do planeta:";
+              } else {
+                label.textContent = "Lua " + (propertyLabels[prop] || prop) + ":";
+              }
               const input = document.createElement("input");
               input.type = "number";
               input.step = "0.1";
-              input.value = moon[prop];
-              input.addEventListener("change", function () {
-                moon[prop] = parseFloat(this.value);
-              });
+              if (prop === "size") {
+                input.value = moon[prop];
+                input.addEventListener("change", function () {
+                  let newVal = parseFloat(this.value);
+                  moon[prop] = newVal;
+                  const scaleFactor = moon[prop] / moon.baseSize;
+                  if (moon.mesh) {
+                    moon.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                  }
+                });
+              } else {
+                input.value = moon[prop];
+                input.addEventListener("change", function () {
+                  moon[prop] = parseFloat(this.value);
+                });
+              }
               moonsContent.appendChild(label);
               moonsContent.appendChild(input);
             });
@@ -877,7 +896,8 @@
           buildMoonsTabs();
 
           const moonsTitle = document.createElement("h3");
-          moonsTitle.textContent = "Luass";
+          // Corrigido o título para "Luas"
+          moonsTitle.textContent = "Luas";
           configContent.appendChild(document.createElement("hr"));
           configContent.appendChild(moonsTitle);
           moonsContainer.appendChild(moonsTabs);
