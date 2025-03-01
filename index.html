@@ -162,7 +162,7 @@
     
     <script>
       (function(){
-        // Fator de escala para os orbitais: volta para o valor original (50)
+        // Fator de escala para as órbitas: usamos o valor original 50
         const orbitScale = 50;
         
         // =============================
@@ -235,12 +235,13 @@
           return `${yyyy}-${mm}-${dd}`;
         }
         
+        // Agora, quando o slider estiver em 0, avançamos 0.25 dia por segundo.
         function getSpeedFactor(speed) {
           switch(speed) {
             case -3: return -3650 * 0.25;
             case -2: return -365 * 0.25;
             case -1: return -30 * 0.25;
-            case  0: return 0.25; // 1/4 de dia por segundo
+            case  0: return 0.25;
             case  1: return 30 * 0.25;
             case  2: return 365 * 0.25;
             case  3: return 3650 * 0.25;
@@ -256,7 +257,7 @@
         // =============================
         // Criação do Sol e Iluminação
         // =============================
-        // O Sol volta ao seu tamanho original: raio 10
+        // O Sol volta ao tamanho original: raio 10
         const textureLoader = new THREE.TextureLoader();
         const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         const sunTexture = textureLoader.load("sun-texture.jpg");
@@ -293,7 +294,7 @@
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
-        // Valores em "Terras" convertidos para o modelo (1 Terra = 3.5)
+        // Valores em "Terras" convertidos (1 Terra = 3.5)
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 1.33 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 3.33 },
@@ -305,7 +306,7 @@
           { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 14.04 },
           { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 13.58 }
         ];
-        // Os valores de "size" estão em Terras (já convertidos: 1 Terra = 3.5)
+        // Os valores de "size" já estão em unidades reais (1 Terra = 3.5)
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -356,10 +357,9 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          planetData.baseSize = planetData.size; // Armazena o tamanho base
+          planetData.baseSize = planetData.size; // Guarda o tamanho original para referência
           planets.push(planetData);
           
-          // Cria órbita do planeta com escala revertida (50)
           const orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -458,12 +458,38 @@
         });
         
         // =============================
-        // Atualização do Alvo dos Controles
+        // Função de Zoom Interpolado
         // =============================
         function updateControlsTarget() {
-          if (currentTarget) {
-            controls.target.copy(currentTarget.position);
+          // Se o alvo selecionado for o Sol, basta copiar sua posição
+          if (currentTarget === sun) {
+            controls.target.copy(sun.position);
+            return;
           }
+          // Calcula o vetor entre o Sol e o alvo
+          let D = new THREE.Vector3().subVectors(currentTarget.position, sun.position);
+          if (D.length() === 0) {
+            controls.target.copy(sun.position);
+            return;
+          }
+          D.normalize();
+          // Projeção da posição da câmera na reta do Sol ao alvo
+          let camOffset = new THREE.Vector3().subVectors(camera.position, sun.position);
+          let projLength = camOffset.dot(D);
+          let projectionPoint = sun.position.clone().add(D.clone().multiplyScalar(projLength));
+          // Distância perpendicular da câmera à linha Sol–alvo
+          let L = new THREE.Vector3().subVectors(camera.position, projectionPoint).length();
+          let t;
+          if(L > 200) {
+            t = 0;
+          } else if(L < 50) {
+            t = 1;
+          } else {
+            t = (200 - L) / 150;
+          }
+          // Interpolação entre Sol e o alvo
+          let newTarget = new THREE.Vector3().lerpVectors(sun.position, currentTarget.position, t);
+          controls.target.copy(newTarget);
         }
         
         // =============================
