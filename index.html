@@ -56,7 +56,7 @@
       /* Estilo do menu de configuração compacto */
       #configMenu {
         position: absolute;
-        top: 60px; /* Abaixo do botão de configuração */
+        top: 60px;
         left: 10px;
         background: rgba(0, 0, 0, 0.9);
         padding: 10px;
@@ -328,10 +328,7 @@
           emissive: 0xffaa00,
           emissiveIntensity: 0.5,
         });
-        const sunSurfaceLayer = new THREE.Mesh(
-          sunSurfaceGeometry,
-          sunSurfaceMaterial
-        );
+        const sunSurfaceLayer = new THREE.Mesh(sunSurfaceGeometry, sunSurfaceMaterial);
         sunSurfaceLayer.castShadow = false;
         sunSurfaceLayer.receiveShadow = false;
         sun.add(sunSurfaceLayer);
@@ -343,11 +340,12 @@
         const planetsData = [
           { name: "Mercúrio", a: 0.387, e: 0.2056, i: 7.005, Ω: 48.331, ω: 29.124, M0: 174.796, period: 87.97, rotationPeriod: 1407.6, size: 0.38, moons: [] },
           { name: "Vênus", a: 0.723, e: 0.0068, i: 3.394, Ω: 76.680, ω: 54.884, M0: 50.115, period: 224.70, rotationPeriod: -5832, size: 0.95, moons: [] },
-          { name: "Terra", a: 1.000, e: 0.0167, i: 0.000, Ω: 0.000, ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24, axialTilt: 45, size: 1.0, 
+          { name: "Terra", a: 1.000, e: 0.0167, i: 0.000, Ω: 0.000, ω: 102.937, M0: 357.517, period: 365.256, rotationPeriod: 24, axialTilt: 45, size: 1.0,
+            // Aumentei o semieixo da Lua da Terra para 1.5 para que fique visível fora da esfera do planeta
             moons: [
               {
                 name: "Lua da Terra",
-                a: 0.1,
+                a: 1.5,
                 e: 0,
                 i: 0,
                 Ω: 0,
@@ -356,16 +354,17 @@
                 period: 27.3,
                 rotationPeriod: 655.7,
                 axialTilt: 6.68,
-                size: 0.27
-              }
-            ]
+                size: 0.27,
+              },
+            ],
           },
           { name: "Marte", a: 1.524, e: 0.0934, i: 1.850, Ω: 49.558, ω: 286.502, M0: 19.373, period: 686.980, rotationPeriod: 24.6, size: 0.53, moons: [] },
-          { name: "Nope", a: 1.59, e: 0.3, i: 90.0, Ω: 0.0, ω: 0.0, M0: 0.0, period: 730, rotationPeriod: 26, axialTilt: 45, size: 1.0, 
+          { name: "Nope", a: 1.59, e: 0.3, i: 90.0, Ω: 0.0, ω: 0.0, M0: 0.0, period: 730, rotationPeriod: 26, axialTilt: 45, size: 1.0,
+            // Aumentei o semieixo da Lua de Nope para 1.0
             moons: [
               {
                 name: "Lua de Nope",
-                a: 0.15,
+                a: 1.0,
                 e: 0,
                 i: 0,
                 Ω: 0,
@@ -374,14 +373,14 @@
                 period: 1,
                 rotationPeriod: 1,
                 axialTilt: 0,
-                size: 0.2
-              }
-            ]
+                size: 0.2,
+              },
+            ],
           },
           { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304, Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59, rotationPeriod: 9.9, size: 11.21, moons: [] },
           { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485, Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22, rotationPeriod: 10.7, size: 9.14, moons: [] },
           { name: "Urano", a: 19.191, e: 0.0463, i: 0.773, Ω: 74.006, ω: 96.998, M0: 142.238, period: 30685.4, rotationPeriod: 17.2, size: 4.01, moons: [] },
-          { name: "Netuno", a: 30.07, e: 0.0086, i: 1.770, Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1, size: 3.88, moons: [] }
+          { name: "Netuno", a: 30.07, e: 0.0086, i: 1.770, Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1, size: 3.88, moons: [] },
         ];
         // Os valores de "size" estão na escala desejada (1 Terra = 1).
 
@@ -394,7 +393,7 @@
           "Júpiter": { texture: "jupiter-texture.jpg", displacement: "jupiter-displacement.jpg", fallbackColor: 0xffffff },
           "Saturno": { texture: "saturn-texture.jpg", displacement: "saturn-displacement.jpg", fallbackColor: 0xffffff },
           "Urano": { texture: "uranus-texture.jpg", displacement: "uranus-displacement.jpg", fallbackColor: 0xffffff },
-          "Netuno": { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0xffffff }
+          "Netuno": { texture: "neptune-texture.jpg", displacement: "neptune-displacement.jpg", fallbackColor: 0xffffff },
         };
 
         let planets = [];
@@ -659,7 +658,6 @@
           });
 
           updateMoons();
-
           updateControlsTarget();
           controls.update();
           renderer.render(scene, camera);
@@ -804,7 +802,7 @@
             addTab.addEventListener("click", function () {
               const newMoon = {
                 name: "Nova Lua",
-                a: 0.1,
+                a: 0.5,
                 e: 0,
                 i: 0,
                 Ω: 0,
