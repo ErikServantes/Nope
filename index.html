@@ -162,6 +162,9 @@
     
     <script>
       (function(){
+        // Fator de escala para as posições (aumentado de 50 para 200)
+        const orbitScale = 200;
+        
         // =============================
         // Cena, Câmera, Renderer e Controles
         // =============================
@@ -237,11 +240,11 @@
             case -3: return -3650 * 0.25;
             case -2: return -365 * 0.25;
             case -1: return -30 * 0.25;
-            case  0: return 1; // 1 dia/segundo (normal)
+            case  0: return 0.25; // 1/4 de dia por segundo
             case  1: return 30 * 0.25;
             case  2: return 365 * 0.25;
             case  3: return 3650 * 0.25;
-            default: return 1;
+            default: return 0.25;
           }
         }
         
@@ -253,8 +256,9 @@
         // =============================
         // Criação do Sol e Iluminação
         // =============================
+        // O Sol agora é 4 vezes maior: raio de 40 (4x10)
         const textureLoader = new THREE.TextureLoader();
-        const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        const sunGeometry = new THREE.SphereGeometry(40, 32, 32);
         const sunTexture = textureLoader.load("sun-texture.jpg");
         const sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -272,7 +276,7 @@
         sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
         
-        const sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
+        const sunSurfaceGeometry = new THREE.SphereGeometry(40 * 1.005, 32, 32);
         const sunSurfaceTexture = textureLoader.load("sun-surface.png");
         const sunSurfaceMaterial = new THREE.MeshPhongMaterial({
           map: sunSurfaceTexture,
@@ -289,16 +293,7 @@
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
-        // Tamanhos atualizados (em Terras) conforme solicitado:
-        // Mercúrio: 0,38 Terras  → 0,38 * 3.5 = 1.33
-        // Vênus:   0,95 Terras  → 0,95 * 3.5 = 3.33
-        // Terra:   1,00 Terra   → 1,00 * 3.5 = 3.50
-        // Marte:   0,53 Terras  → 0,53 * 3.5 = 1.86
-        // Nope:    (fictício)  → 3 (mantém)
-        // Júpiter: 11,21 Terras → 11,21 * 3.5 ≈ 39.24
-        // Saturno: 9,14 Terras  → 9,14 * 3.5 ≈ 32.00
-        // Urano:   4,01 Terras  → 4,01 * 3.5 ≈ 14.04
-        // Netuno:  3,88 Terras  → 3,88 * 3.5 ≈ 13.58
+        // Valores de "size" definidos em "Terras"
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 1.33 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 3.33 },
@@ -310,7 +305,7 @@
           { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 14.04 },
           { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 13.58 }
         ];
-        // Os valores de "size" já estão em unidades reais (multiplicados por 3.5)
+        // Os valores de "size" estão em Terras. O valor base (1 Terra) equivale a 3.5 no modelo.
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -326,7 +321,10 @@
         let planets = [];
         let nopeMesh, earthMesh;
         planetsData.forEach(planetData => {
-          let geometry = new THREE.SphereGeometry(planetData.size, (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16, (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16);
+          // Cria a geometria com o tamanho definido em planetData.size
+          let geometry = new THREE.SphereGeometry(planetData.size, 
+                              (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16, 
+                              (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16);
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
           let displacement = textureLoader.load(texData.displacement);
@@ -359,11 +357,11 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          // Armazena o tamanho base (referência para ajuste posterior)
+          // Armazena o tamanho base para referência
           planetData.baseSize = planetData.size;
           planets.push(planetData);
           
-          // Cria órbita do planeta
+          // Cria órbita do planeta com a escala aumentada (de 50 para 200)
           const orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -374,7 +372,7 @@
               let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
               let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
               let Z = r * (Math.sin(ω+f) * Math.sin(i));
-              let scale = 50;
+              let scale = orbitScale;
               pts.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
             }
             return pts;
@@ -507,7 +505,7 @@
               const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Z = r * (Math.sin(ω + f) * Math.sin(i));
-              const scale = 50;
+              const scale = orbitScale;
               return new THREE.Vector3(X * scale, Z * scale, Y * scale);
             })(planet, simulationTime);
             if (planet.pivot) {
@@ -611,7 +609,7 @@
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
-            // Para o parâmetro "size", converte para "Terras" (1 Terra = 3.5)
+            // Para o parâmetro "size", converter para "Terras" (1 Terra = 3.5)
             if (prop === 'size') {
               input.value = planet[prop] / 3.5;
               input.addEventListener('change', function() {
