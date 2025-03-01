@@ -85,15 +85,19 @@
         color: white;
         cursor: pointer;
       }
-      #configMenu .config-tabs {
+      /* Container de abas com rolagem horizontal */
+      #configTabs {
         display: flex;
         border-bottom: 1px solid #555;
+        overflow-x: auto;
+        white-space: nowrap;
       }
       #configMenu .config-tab {
         padding: 5px;
         cursor: pointer;
         border-right: 1px solid #555;
         font-size: 14px;
+        flex: 0 0 auto;
       }
       #configMenu .config-tab.active {
         background: #333;
@@ -285,21 +289,28 @@
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
+        // Tamanhos atualizados (em Terras) conforme solicitado:
+        // Mercúrio: 0,38 Terras  → 0,38 * 3.5 = 1.33
+        // Vênus:   0,95 Terras  → 0,95 * 3.5 = 3.33
+        // Terra:   1,00 Terra   → 1,00 * 3.5 = 3.50
+        // Marte:   0,53 Terras  → 0,53 * 3.5 = 1.86
+        // Nope:    (fictício)  → 3 (mantém)
+        // Júpiter: 11,21 Terras → 11,21 * 3.5 ≈ 39.24
+        // Saturno: 9,14 Terras  → 9,14 * 3.5 ≈ 32.00
+        // Urano:   4,01 Terras  → 4,01 * 3.5 ≈ 14.04
+        // Netuno:  3,88 Terras  → 3,88 * 3.5 ≈ 13.58
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 1.33 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 3.33 },
           { name:"Terra",   a:1.000, e:0.0167, i:0.000, Ω:0.000, ω:102.937, M0:357.517, period:365.256, rotationPeriod:24, axialTilt:45, size: 3.5 },
           { name:"Marte",   a:1.524, e:0.0934, i:1.850, Ω:49.558, ω:286.502, M0:19.373, period:686.980, rotationPeriod:24.6, size: 1.86 },
           { name:"Nope",    a:1.59,  e:0.3,   i:90.0,  Ω:0.0,   ω:0.0,   M0:0.0,     period:730, rotationPeriod:26, axialTilt:45, size: 3 },
-          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, size: 39.23 },
+          { name:"Júpiter", a:5.203, e:0.0489, i:1.304, Ω:100.464, ω:273.867, M0:20.020, period:4332.59, rotationPeriod:9.9, size: 39.24 },
           { name:"Saturno", a:9.537, e:0.0565, i:2.485, Ω:113.665, ω:339.392, M0:317.020, period:10759.22, rotationPeriod:10.7, size: 32.00 },
           { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 14.04 },
           { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 13.58 }
         ];
-        // Armazena o tamanho base (em unidades do modelo) para cada planeta.
-        // Para os planetas definidos em "Terras", 1 Terra corresponde a 3.5.
-        // Assim, já usamos os valores corretos na propriedade size.
-        
+        // Os valores de "size" já estão em unidades reais (multiplicados por 3.5)
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -315,7 +326,6 @@
         let planets = [];
         let nopeMesh, earthMesh;
         planetsData.forEach(planetData => {
-          // Cria a geometria com o tamanho atualizado
           let geometry = new THREE.SphereGeometry(planetData.size, (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16, (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16);
           let texData = textureMap[planetData.name];
           let texture = textureLoader.load(texData.texture);
@@ -327,7 +337,6 @@
             material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
           
-          // Se o planeta for Terra ou Nope, criamos um grupo para permitir inclinação
           if(planetData.name==="Terra" || planetData.name==="Nope") {
             let pivot = new THREE.Group();
             let tiltGroup = new THREE.Group();
@@ -336,7 +345,6 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             tiltGroup.add(mesh);
-            // Aplica a inclinação do eixo
             tiltGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
             scene.add(pivot);
             planetData.pivot = pivot;
@@ -351,7 +359,7 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          // Armazena o tamanho base (para referência no ajuste do menu)
+          // Armazena o tamanho base (referência para ajuste posterior)
           planetData.baseSize = planetData.size;
           planets.push(planetData);
           
@@ -603,9 +611,8 @@
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
-            // Para o parâmetro "size", converter para "Terras"
+            // Para o parâmetro "size", converte para "Terras" (1 Terra = 3.5)
             if (prop === 'size') {
-              // Exibe o valor em "Terras": valor atual dividido por 3.5 (valor da Terra)
               input.value = planet[prop] / 3.5;
               input.addEventListener('change', function() {
                 let newEarthUnits = parseFloat(this.value);
