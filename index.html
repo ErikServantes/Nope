@@ -162,8 +162,8 @@
     
     <script>
       (function(){
-        // Fator de escala para as posições (aumentado de 50 para 200)
-        const orbitScale = 200;
+        // Fator de escala para os orbitais: volta para o valor original (50)
+        const orbitScale = 50;
         
         // =============================
         // Cena, Câmera, Renderer e Controles
@@ -256,9 +256,9 @@
         // =============================
         // Criação do Sol e Iluminação
         // =============================
-        // O Sol agora é 4 vezes maior: raio de 40 (4x10)
+        // O Sol volta ao seu tamanho original: raio 10
         const textureLoader = new THREE.TextureLoader();
-        const sunGeometry = new THREE.SphereGeometry(40, 32, 32);
+        const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
         const sunTexture = textureLoader.load("sun-texture.jpg");
         const sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -276,7 +276,7 @@
         sunLight.position.set(0, 0, 0);
         sun.add(sunLight);
         
-        const sunSurfaceGeometry = new THREE.SphereGeometry(40 * 1.005, 32, 32);
+        const sunSurfaceGeometry = new THREE.SphereGeometry(10 * 1.005, 32, 32);
         const sunSurfaceTexture = textureLoader.load("sun-surface.png");
         const sunSurfaceMaterial = new THREE.MeshPhongMaterial({
           map: sunSurfaceTexture,
@@ -293,7 +293,7 @@
         // =============================
         // Dados dos Planetas e Texturas
         // =============================
-        // Valores de "size" definidos em "Terras"
+        // Valores em "Terras" convertidos para o modelo (1 Terra = 3.5)
         const planetsData = [
           { name:"Mercúrio", a:0.387, e:0.2056, i:7.005, Ω:48.331, ω:29.124, M0:174.796, period:87.97, rotationPeriod:1407.6, size: 1.33 },
           { name:"Vênus",   a:0.723, e:0.0068, i:3.394, Ω:76.680, ω:54.884, M0:50.115, period:224.70, rotationPeriod:-5832, size: 3.33 },
@@ -305,7 +305,7 @@
           { name:"Urano",   a:19.191, e:0.0463, i:0.773, Ω:74.006,  ω:96.998, M0:142.238, period:30685.4, rotationPeriod:17.2, size: 14.04 },
           { name:"Netuno",  a:30.07,  e:0.0086, i:1.770, Ω:131.784, ω:272.846, M0:256.228, period:60190, rotationPeriod:16.1, size: 13.58 }
         ];
-        // Os valores de "size" estão em Terras. O valor base (1 Terra) equivale a 3.5 no modelo.
+        // Os valores de "size" estão em Terras (já convertidos: 1 Terra = 3.5)
         const textureMap = {
           "Mercúrio": { texture:"mercury-texture.jpg", displacement:"mercury-displacement.jpg", fallbackColor:0xffffff },
           "Vênus":   { texture:"venus-texture.jpg", displacement:"venus-displacement.jpg", fallbackColor:0xffffff },
@@ -321,7 +321,6 @@
         let planets = [];
         let nopeMesh, earthMesh;
         planetsData.forEach(planetData => {
-          // Cria a geometria com o tamanho definido em planetData.size
           let geometry = new THREE.SphereGeometry(planetData.size, 
                               (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16, 
                               (planetData.name==="Terra" || planetData.name==="Marte" || planetData.name==="Nope") ? 320 : 16);
@@ -357,11 +356,10 @@
             scene.add(mesh);
             planetData.mesh = mesh;
           }
-          // Armazena o tamanho base para referência
-          planetData.baseSize = planetData.size;
+          planetData.baseSize = planetData.size; // Armazena o tamanho base
           planets.push(planetData);
           
-          // Cria órbita do planeta com a escala aumentada (de 50 para 200)
+          // Cria órbita do planeta com escala revertida (50)
           const orbitPoints = (function(planet, numPoints=200){
             let pts = [];
             let a = planet.a, e = planet.e, i = THREE.Math.degToRad(planet.i),
@@ -372,8 +370,7 @@
               let X = r * (Math.cos(Ω) * Math.cos(ω+f) - Math.sin(Ω) * Math.sin(ω+f) * Math.cos(i));
               let Y = r * (Math.sin(Ω) * Math.cos(ω+f) + Math.cos(Ω) * Math.sin(ω+f) * Math.cos(i));
               let Z = r * (Math.sin(ω+f) * Math.sin(i));
-              let scale = orbitScale;
-              pts.push(new THREE.Vector3(X * scale, Z * scale, Y * scale));
+              pts.push(new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale));
             }
             return pts;
           })(planetData);
@@ -505,8 +502,7 @@
               const X = r * (Math.cos(Ω) * Math.cos(ω + f) - Math.sin(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Y = r * (Math.sin(Ω) * Math.cos(ω + f) + Math.cos(Ω) * Math.sin(ω + f) * Math.cos(i));
               const Z = r * (Math.sin(ω + f) * Math.sin(i));
-              const scale = orbitScale;
-              return new THREE.Vector3(X * scale, Z * scale, Y * scale);
+              return new THREE.Vector3(X * orbitScale, Z * orbitScale, Y * orbitScale);
             })(planet, simulationTime);
             if (planet.pivot) {
               planet.pivot.position.copy(pos);
@@ -615,7 +611,6 @@
               input.addEventListener('change', function() {
                 let newEarthUnits = parseFloat(this.value);
                 planet[prop] = newEarthUnits * 3.5;
-                // Atualiza o scale do mesh com base na nova proporção em relação ao baseSize
                 const scaleFactor = planet[prop] / planet.baseSize;
                 if (planet.pivot && planet.tiltGroup && planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
