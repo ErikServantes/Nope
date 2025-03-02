@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.6 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.7 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -58,8 +58,7 @@
         position: absolute;
         top: 60px; /* Abaixo do botão de configuração */
         left: 10px;
-        /* Fundo 90% transparente: 10% opaco */
-        background: rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.1); /* 90% transparente */
         padding: 10px;
         border: 1px solid #555;
         border-radius: 5px;
@@ -456,26 +455,20 @@
             material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           }
 
-          // Se o planeta possui axialTilt (por exemplo, Terra, Nope ou outros que o definam)
+          // Se o planeta define um axialTilt, cria a hierarquia para preservar o tilt fixo
           if (planetData.axialTilt !== undefined) {
-            // Criamos um grupo "pivot" para a posição orbital
             let pivot = new THREE.Group();
-            // Dentro do pivot, criamos um grupo "spinGroup" que receberá o giro do planeta
-            let spinGroup = new THREE.Group();
-            pivot.add(spinGroup);
-            // Dentro do spinGroup, criamos um "axisGroup" que receberá a inclinação do eixo (axial tilt)
+            // Cria um grupo que recebe o axial tilt (fixo) e não será alterado pela rotação diária
             let axisGroup = new THREE.Group();
-            spinGroup.add(axisGroup);
-            // Cria o mesh do planeta e adiciona ao axisGroup
+            pivot.add(axisGroup);
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             axisGroup.add(mesh);
-            // Aplica o axial tilt (rotaciona o axisGroup de forma fixa)
+            // Aplica o axial tilt fixo ao axisGroup
             axisGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
             scene.add(pivot);
             planetData.pivot = pivot;
-            planetData.spinGroup = spinGroup;
             planetData.axisGroup = axisGroup;
             planetData.mesh = mesh;
             if (planetData.name === "Nope") {
@@ -485,7 +478,6 @@
               earthMesh = pivot;
             }
           } else {
-            // Se não houver axialTilt definido, cria normalmente
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -603,7 +595,7 @@
                   Math.sqrt(1 + moon.e) * Math.sin(E / 2),
                   Math.sqrt(1 - moon.e) * Math.cos(E / 2)
                 );
-                // A distância é calculada a partir da superfície do planeta:
+                // Distância da lua: medida a partir da superfície do planeta
                 let r = planet.size + moon.a * (1 - moon.e * Math.cos(E));
                 let i_rad = (moon.i * Math.PI) / 180;
                 let Ω_rad = (moon.Ω * Math.PI) / 180;
@@ -672,21 +664,20 @@
             dateInput.value = formatDate(simDate);
           }
 
-          // Atualiza a posição dos planetas
+          // Atualiza a posição dos planetas (calculada a partir dos parâmetros orbitais)
           planets.forEach((planet) => {
             const pos = (function (planet, time) {
               const a = planet.a,
-                e = planet.e,
-                i = THREE.Math.degToRad(planet.i),
-                Ω = THREE.Math.degToRad(planet.Ω),
-                ω = THREE.Math.degToRad(planet.ω),
-                M0 = THREE.Math.degToRad(planet.M0),
-                period = planet.period;
+                    e = planet.e,
+                    i = THREE.Math.degToRad(planet.i),
+                    Ω = THREE.Math.degToRad(planet.Ω),
+                    ω = THREE.Math.degToRad(planet.ω),
+                    M0 = THREE.Math.degToRad(planet.M0),
+                    period = planet.period;
               const n = 2 * Math.PI / period;
               let M = (M0 + n * time) % (2 * Math.PI);
               const E = (function (M, e, tolerance = 1e-6) {
-                let E = M,
-                  delta = 1;
+                let E = M, delta = 1;
                 while (Math.abs(delta) > tolerance) {
                   delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
                   E = E - delta;
@@ -710,14 +701,14 @@
             }
           });
 
-          // Atualiza a rotação dos planetas (para simular o spin)
+          // Atualiza o spin (rotação diária) dos planetas
           planets.forEach((planet) => {
             if (planet.rotationPeriod) {
               const rotationPeriodDays = planet.rotationPeriod / 24;
               const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
-              // Se o planeta possui spinGroup (ou axisGroup) aplicamos a rotação no spinGroup
-              if (planet.spinGroup) {
-                planet.spinGroup.rotation.y = angle;
+              // Se o planeta possui axialTilt, atualiza apenas a rotação do mesh dentro do AxisGroup
+              if (planet.axisGroup) {
+                planet.mesh.rotation.y = angle;
               } else if (planet.mesh) {
                 planet.mesh.rotation.y = angle;
               }
@@ -813,7 +804,7 @@
                 let newVal = parseFloat(this.value);
                 planet[prop] = newVal;
                 const scaleFactor = planet[prop] / planet.baseSize;
-                if (planet.pivot && planet.spinGroup && planet.axisGroup && planet.mesh) {
+                if (planet.pivot && planet.axisGroup && planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
                 } else if (planet.mesh) {
                   planet.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
