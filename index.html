@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nope v2.7 – Simulação Temporal e Sistema Planetário</title>
+    <title>Nope v2.8 – Simulação Temporal e Sistema Planetário</title>
     <style>
       body {
         margin: 0;
@@ -350,10 +350,23 @@
             ],
           },
           { name: "Júpiter", a: 5.203, e: 0.0489, i: 1.304, Ω: 100.464, ω: 273.867, M0: 20.020, period: 4332.59, rotationPeriod: 9.9, size: 11.21, moons: [] },
-          { name: "Saturno", a: 9.537, e: 0.0565, i: 2.485, Ω: 113.665, ω: 339.392, M0: 317.020, period: 10759.22, rotationPeriod: 10.7, size: 9.14, moons: [] },
+          {
+            name: "Saturno",
+            a: 9.537,
+            e: 0.0565,
+            i: 2.485,
+            Ω: 113.665,
+            ω: 339.392,
+            M0: 317.020,
+            period: 10759.22,
+            rotationPeriod: 10.7,
+            size: 9.14,
+            moons: []
+          },
           { name: "Urano", a: 19.191, e: 0.0463, i: 0.773, Ω: 74.006, ω: 96.998, M0: 142.238, period: 30685.4, rotationPeriod: 17.2, size: 4.01, moons: [] },
           { name: "Netuno", a: 30.07, e: 0.0086, i: 1.770, Ω: 131.784, ω: 272.846, M0: 256.228, period: 60190, rotationPeriod: 16.1, size: 3.88, moons: [] },
         ];
+        // "size" está na escala desejada (1 Terra = 1).
 
         const textureMap = {
           "Mercúrio": { texture: "mercury-texture.jpg", displacement: "mercury-displacement.jpg", fallbackColor: 0xffffff },
@@ -370,43 +383,30 @@
         let planets = [];
         let nopeMesh, earthMesh;
         planetsData.forEach((planetData) => {
-          let geometry = new THREE.SphereGeometry(
-            planetData.size,
-            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope")
-              ? 320
-              : 16,
-            (planetData.name === "Terra" || planetData.name === "Marte" || planetData.name === "Nope")
-              ? 320
-              : 16
-          );
-          let texData = textureMap[planetData.name];
-          let texture = textureLoader.load(texData.texture);
-          let displacement = textureLoader.load(texData.displacement);
-          let material;
-          if (
-            planetData.name === "Terra" ||
-            planetData.name === "Marte" ||
-            planetData.name === "Nope"
-          ) {
-            material = new THREE.MeshStandardMaterial({
+          // Se o planeta possui axialTilt (ex.: Terra e Nope), usamos a hierarquia com axisGroup
+          if (planetData.axialTilt !== undefined && planetData.name !== "Saturno") {
+            let pivot = new THREE.Group();
+            let axisGroup = new THREE.Group();
+            pivot.add(axisGroup);
+            let geometry = new THREE.SphereGeometry(
+              planetData.size,
+              320,
+              320
+            );
+            let texData = textureMap[planetData.name];
+            let texture = textureLoader.load(texData.texture);
+            let displacement = textureLoader.load(texData.displacement);
+            let material = new THREE.MeshStandardMaterial({
               color: 0xffffff,
               map: texture,
               displacementMap: displacement,
               displacementScale: planetData.size * 0.025,
             });
-          } else {
-            material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
-          }
-          // Se o planeta define axialTilt, usamos a nova hierarquia:
-          if (planetData.axialTilt !== undefined) {
-            let pivot = new THREE.Group();
-            let axisGroup = new THREE.Group();
-            pivot.add(axisGroup);
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             axisGroup.add(mesh);
-            // Aplica o axial tilt fixo no axisGroup
+            // Aplica o axial tilt fixo
             axisGroup.rotation.z = THREE.Math.degToRad(planetData.axialTilt);
             scene.add(pivot);
             planetData.pivot = pivot;
@@ -414,7 +414,59 @@
             planetData.mesh = mesh;
             if (planetData.name === "Nope") { nopeMesh = pivot; }
             if (planetData.name === "Terra") { earthMesh = pivot; }
-          } else {
+          }
+          // Se for Saturno, criamos um grupo especial com os anéis
+          else if (planetData.name === "Saturno") {
+            let saturnGroup = new THREE.Group();
+            // Cria o mesh de Saturno
+            let geometry = new THREE.SphereGeometry(
+              planetData.size,
+              16,
+              16
+            );
+            let texData = textureMap[planetData.name];
+            let texture = textureLoader.load(texData.texture);
+            let displacement = textureLoader.load(texData.displacement);
+            let material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              map: texture,
+              displacementMap: displacement,
+              displacementScale: planetData.size * 0.025,
+            });
+            let mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            saturnGroup.add(mesh);
+            // Cria os anéis de Saturno
+            // Define raios internos e externos relativos ao tamanho do planeta
+            const innerRadius = planetData.size * 1.2;
+            const outerRadius = planetData.size * 2;
+            const ringGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
+            // Material simples com transparência
+            const ringMaterial = new THREE.MeshBasicMaterial({
+              color: 0xaaaaaa,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.8,
+            });
+            const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+            // A geometria de anel vem no plano XY; para alinhar com a superfície de Saturno (assumindo que o "up" é Y), giramos 90° em X.
+            ringMesh.rotation.x = -Math.PI / 2;
+            saturnGroup.add(ringMesh);
+            scene.add(saturnGroup);
+            planetData.mesh = saturnGroup;
+          }
+          // Para os demais planetas (sem axialTilt definido e que não sejam Saturno)
+          else {
+            let geometry = new THREE.SphereGeometry(
+              planetData.size,
+              16,
+              16
+            );
+            let texData = textureMap[planetData.name];
+            let texture = textureLoader.load(texData.texture);
+            let displacement = textureLoader.load(texData.displacement);
+            let material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
             let mesh = new THREE.Mesh(geometry, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -424,7 +476,7 @@
           planetData.baseSize = planetData.size;
           planets.push(planetData);
 
-          // Calcula e armazena a órbita
+          // Cria a órbita do planeta
           const orbitPoints = (function (planet, numPoints = 200) {
             let pts = [];
             let a = planet.a,
@@ -452,7 +504,7 @@
           scene.add(orbitLine);
           planetData.orbitLine = orbitLine;
 
-          // Cria grupo para luas
+          // Cria grupo para luas se não existir
           if (!planetData.moonGroup) {
             planetData.moonGroup = new THREE.Group();
             if (planetData.pivot) {
@@ -466,7 +518,7 @@
           });
         });
 
-        // Recalcula a órbita (quando parâmetros são alterados)
+        // Recalcula a órbita quando parâmetros orbitais são alterados
         function recalcOrbit(planet) {
           let numPoints = 200;
           let pts = [];
@@ -499,11 +551,8 @@
           moon.baseSize = moon.size;
           if (!planet.moonGroup) {
             planet.moonGroup = new THREE.Group();
-            if (planet.pivot) {
-              planet.pivot.add(planet.moonGroup);
-            } else if (planet.mesh) {
-              planet.mesh.add(planet.moonGroup);
-            }
+            if (planet.pivot) { planet.pivot.add(planet.moonGroup); }
+            else if (planet.mesh) { planet.mesh.add(planet.moonGroup); }
           }
           planet.moonGroup.add(mesh);
         }
@@ -524,7 +573,7 @@
                   Math.sqrt(1 + moon.e) * Math.sin(E / 2),
                   Math.sqrt(1 - moon.e) * Math.cos(E / 2)
                 );
-                // Distância medida a partir da superfície do planeta
+                // A distância é calculada a partir da superfície do planeta
                 let r = planet.size + moon.a * (1 - moon.e * Math.cos(E));
                 let i_rad = (moon.i * Math.PI) / 180;
                 let Ω_rad = (moon.Ω * Math.PI) / 180;
@@ -571,12 +620,10 @@
           const now = performance.now();
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
-
           simulationTime += dt * getSpeedFactor(sliderAtivo ? speedSetting : 0);
           const simDate = new Date(refDate.getTime() + simulationTime * 86400000);
           if (document.activeElement !== dateInput) { dateInput.value = formatDate(simDate); }
-
-          // Atualiza a posição orbital dos planetas
+          // Atualiza posição orbital dos planetas
           planets.forEach((planet) => {
             const pos = (function (planet, time) {
               const a = planet.a,
@@ -609,18 +656,15 @@
             if (planet.pivot) { planet.pivot.position.copy(pos); }
             else { planet.mesh.position.copy(pos); }
           });
-
-          // Atualiza o spin (rotação diária) dos planetas – somente o mesh gira (mantendo o tilt fixo)
+          // Atualiza o spin (rotação diária) dos planetas
           planets.forEach((planet) => {
             if (planet.rotationPeriod) {
               const rotationPeriodDays = planet.rotationPeriod / 24;
               const angle = simulationTime * (2 * Math.PI / rotationPeriodDays);
-              if (planet.axisGroup) { // Se o planeta tem axisGroup, gira somente o mesh dentro dele
-                planet.mesh.rotation.y = angle;
-              } else if (planet.mesh) { planet.mesh.rotation.y = angle; }
+              if (planet.axisGroup) { planet.mesh.rotation.y = angle; }
+              else if (planet.mesh) { planet.mesh.rotation.y = angle; }
             }
           });
-
           updateMoons();
           updateControlsTarget();
           controls.update();
@@ -628,7 +672,6 @@
         }
         animate();
 
-        // Configuração do menu
         configButton.addEventListener("click", function () {
           configMenu.style.display = "block";
           buildConfigMenu();
@@ -637,7 +680,6 @@
           configMenu.style.display = "none";
         });
 
-        // Rótulos para os parâmetros
         const propertyLabels = {
           a: "Distância ao Sol (UA)",
           e: "Excentricidade",
@@ -707,7 +749,7 @@
             configContent.appendChild(input);
           });
 
-          // Área de configuração das luas
+          // Configuração das luas
           const moonsContainer = document.createElement("div");
           moonsContainer.className = "moons-container";
           const moonsTabs = document.createElement("div");
